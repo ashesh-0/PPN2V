@@ -4,7 +4,7 @@ import torch
 import time
 
 import numpy as np
-
+import wandb
 from . import utils
 
 ############################################
@@ -358,6 +358,7 @@ def trainNetwork(net, trainData, valData, noiseModel, postfix, device,
         losses=[]
         optimizer.zero_grad()
         stepCounter+=1
+        wandb.log({"stepCounter":stepCounter})
 
         # Loop over our virtual batch
         for a in range (virtualBatchSize):
@@ -380,9 +381,11 @@ def trainNetwork(net, trainData, valData, noiseModel, postfix, device,
         if stepCounter % 100 == 9:
             utils.printNow(f"Finished step {stepCounter}/{stepsPerEpoch}")
 
+        wandb.log({"train_loss":np.mean(losses)})
         # We have reached the end of an epoch
         if stepCounter % stepsPerEpoch == stepsPerEpoch-1:
             running_loss=(np.mean(losses))
+
             losses=np.array(losses)
             utils.printNow("Epoch "+str(int(stepCounter / stepsPerEpoch))+" finished")
             utils.printNow("avg. loss: "+str(np.mean(losses))+"+-(2SEM)"+str(2.0*np.std(losses)/np.sqrt(losses.size)))
@@ -414,6 +417,8 @@ def trainNetwork(net, trainData, valData, noiseModel, postfix, device,
                 losses.append(loss.item())
             net.train(True)
             avgValLoss=np.mean(losses)
+            wandb.log({"val_loss":avgValLoss})
+
             if len(valHist)==0 or avgValLoss < np.min(np.array(valHist)):
                 torch.save(net,os.path.join(directory,"best_"+postfix+".net"))
             valHist.append(avgValLoss)
