@@ -5,6 +5,7 @@ import numpy as np
 import git
 import socket
 import wandb
+import argparse
 
 # import sys
 # sys.path.append('../../')
@@ -77,20 +78,26 @@ def train(datadir, fname, unet_depth=3, val_fraction=0.05, numOfEpochs=200,
 
 if __name__ == '__main__':
     # Let's look at the training and validation loss
-    datadir = '/group/jug/ashesh/data/ventura_gigascience'
-    fname = 'mito-60x-noise2-lowsnr.tif'
-    unet_depth=3
-    val_fraction=0.05
-    numOfEpochs=20 
-    stepsPerEpoch=10
-    virtualBatchSize=20
-    batchSize=1
-    learningRate=1e-3
-    traindir=os.path.expanduser('~/training/N2V/')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--datadir', type=str, default='/group/jug/ashesh/data/ventura_gigascience')
+    parser.add_argument('--fname', type=str, default='mito-60x-noise2-lowsnr.tif')
+    parser.add_argument('--unet_depth', type=int, default=3)
+    parser.add_argument('--val_fraction', type=float, default=0.05)
+    parser.add_argument('--numOfEpochs', type=int, default=200)
+    parser.add_argument('--stepsPerEpoch', type=int, default=10)
+    parser.add_argument('--virtualBatchSize', type=int, default=200)
+    parser.add_argument('--batchSize', type=int, default=1)
+    parser.add_argument('--learningRate', type=float, default=1e-3)
+    parser.add_argument('--traindir', type=str, default=os.path.expanduser('~/training/N2V/'))
+    args = parser.parse_args()
 
-    train(datadir, fname, unet_depth=unet_depth, val_fraction=val_fraction, numOfEpochs=numOfEpochs, 
-          stepsPerEpoch=stepsPerEpoch, virtualBatchSize=virtualBatchSize,batchSize=batchSize, learningRate=learningRate,
-          traindir=traindir)
+    train(args.datadir, args.fname, unet_depth=args.unet_depth, val_fraction=args.val_fraction, 
+          numOfEpochs=args.numOfEpochs, 
+          stepsPerEpoch=args.stepsPerEpoch, 
+          virtualBatchSize=args.virtualBatchSize,
+          batchSize=args.batchSize, 
+          learningRate=args.learningRate,
+          traindir=args.traindir)
     
     # plt.xlabel('epoch')
     # plt.ylabel('loss')
