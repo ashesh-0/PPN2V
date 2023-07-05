@@ -41,6 +41,7 @@ def train(datadir, fname, unet_depth=3, val_fraction=0.05, numOfEpochs=200,
           traindir=None):
     hostname = socket.gethostname()
     exp_directory = get_workdir(traindir, False)
+
     config = {
         'datadir':datadir,
         'fname':fname,
@@ -54,7 +55,7 @@ def train(datadir, fname, unet_depth=3, val_fraction=0.05, numOfEpochs=200,
     }
     add_git_info(config)
     
-    wandb.init(name=os.path.join(hostname),
+    wandb.init(name=os.path.join(hostname,*exp_directory.split('/')[-2:]),
                          dir=traindir,
                          project="N2V",
                          config=config)
