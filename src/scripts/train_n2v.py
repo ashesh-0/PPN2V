@@ -5,15 +5,15 @@ import argparse
 import os
 import socket
 
-import git
 import matplotlib.pyplot as plt
 import numpy as np
 import wandb
-from tifffile import imread
 
-from src.ppn2v.experiment_saving import add_git_info, get_workdir
+import git
+from src.ppn2v.experiment_saving import add_git_info, dump_config, get_workdir
 from src.ppn2v.pn2v import histNoiseModel, training, utils
 from src.ppn2v.unet.model import UNet
+from tifffile import imread
 
 # See if we can use a GPU
 device = utils.getDevice()
@@ -65,7 +65,7 @@ def train(datadir,
         'learningRate': learningRate
     }
     add_git_info(config)
-
+    dump_config(config, exp_directory)
     wandb.init(name=os.path.join(hostname, *exp_directory.split('/')[-2:]), dir=traindir, project="N2V", config=config)
 
     net = UNet(1, depth=unet_depth)

@@ -1,32 +1,31 @@
+import argparse
 import os
+import pickle
 import socket
+import sys
 import urllib
 import zipfile
 
-import seaborn as sns
-import torch
-
-dtype = torch.float
-device = torch.device("cuda:0")
-import argparse
-import pickle
-import sys
-
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
+import torch
 import wandb
 from scipy.stats import norm
-from tifffile import imread
 from torch.distributions import normal
 from tqdm import tqdm
 
 import src.ppn2v.pn2v.gaussianMixtureNoiseModel
 import src.ppn2v.pn2v.histNoiseModel
 import src.ppn2v.pn2v.prediction
-from src.ppn2v.experiment_saving import add_git_info, get_workdir
+from src.ppn2v.experiment_saving import add_git_info, dump_config, get_workdir, load_config
 from src.ppn2v.pn2v import *
 from src.ppn2v.pn2v.utils import *
 from src.scripts.train_n2v import get_bestmodelname, get_noisy_data
+from tifffile import imread
+
+dtype = torch.float
+device = torch.device("cuda:0")
 
 
 def evaluate_n2v(net, data):
@@ -81,6 +80,7 @@ def train_noise_model(n2v_modeldirectory,
                       hist_bins=64):
 
     hostname = socket.gethostname()
+
     exp_directory = get_workdir(noise_model_rootdirectory, False)
 
     config = {
@@ -95,8 +95,13 @@ def train_noise_model(n2v_modeldirectory,
         'hard_upper_threshold': hard_upper_threshold,
         'hist_bins': hist_bins,
     }
+    n2v_config = load_config(n2v_modeldirectory)
+    if n2v_config is not None:
+        assert n2v_config[
+            'fname'] == data_fileName, f'N2V should have been trained on the same data!!, Found {n2v_config["fname"]} for N2V and {data_fileName} for noise model'
 
     add_git_info(config)
+    dump_config(config, exp_directory)
 
     wandb.init(name=os.path.join(hostname, 'noise_models',
                                  *exp_directory.split('/')[-2:]),

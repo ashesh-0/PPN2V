@@ -1,7 +1,10 @@
+import json
 import os
 from datetime import datetime
 from pathlib import Path
+
 import git
+
 
 def get_new_model_version(model_dir: str) -> str:
     """
@@ -21,6 +24,20 @@ def get_new_model_version(model_dir: str) -> str:
 
 def get_month():
     return datetime.now().strftime("%y%m")
+
+
+def load_config(directory):
+    config_fpath = os.path.join(directory, 'config.json')
+    if not os.path.exists(config_fpath):
+        return None
+
+    with open(config_fpath, 'r') as f:
+        return json.load(f)
+
+
+def dump_config(config, directory):
+    with open(os.path.join(directory, 'config.json'), 'w') as f:
+        json.dump(config, f)
 
 
 def get_workdir(root_dir, use_max_version):
