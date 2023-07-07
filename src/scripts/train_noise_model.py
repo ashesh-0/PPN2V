@@ -66,18 +66,22 @@ def get_trained_n2v_model(n2v_modeldirectory, data_dir, data_fileName):
     return net
 
 
-def train_noise_model(n2v_modeldirectory,
-                      noise_model_rootdirectory,
-                      data_dir,
-                      data_fileName,
-                      normalized_version=True,
-                      n_gaussian=6,
-                      n_coeff=4,
-                      gmm_lowerClip=0.5,
-                      gmm_upperClip=100,
-                      gmm_min_sigma=0.125,
-                      hard_upper_threshold=None,
-                      hist_bins=64):
+def train_noise_model(
+    n2v_modeldirectory,
+    noise_model_rootdirectory,
+    data_dir,
+    data_fileName,
+    normalized_version=True,
+    n_gaussian=6,
+    n_coeff=4,
+    gmm_lowerClip=0.5,
+    gmm_upperClip=100,
+    gmm_min_sigma=0.125,
+    hard_upper_threshold=None,
+    hist_bins=64,
+    val_fraction=0.2,
+    upperclip_quantile=0.995,
+):
 
     hostname = socket.gethostname()
 
@@ -94,6 +98,8 @@ def train_noise_model(n2v_modeldirectory,
         'gmm_min_sigma': gmm_min_sigma,
         'hard_upper_threshold': hard_upper_threshold,
         'hist_bins': hist_bins,
+        'upperclip_quantile': upperclip_quantile,
+        'val_fraction': val_fraction,
     }
     n2v_config = load_config(n2v_modeldirectory)
     if n2v_config is not None:
@@ -111,7 +117,14 @@ def train_noise_model(n2v_modeldirectory,
 
     fpath = os.path.join(data_dir, data_fileName)
     noisy_data = get_noisy_data(fpath)
-    noisy_data = noisy_data[:10].copy()
+
+    val_N = int(noisy_data.shape[0] * val_fraction)
+    noisy_data = noisy_data[val_N:].copy()
+
+    # upperclip data
+    max_val = np.quantile(noisy_data, upperclip_quantile)
+    noisy_data[noisy_data > max_val] = max_val
+
     net = get_trained_n2v_model(n2v_modeldirectory, data_dir, data_fileName)
     signal = evaluate_n2v(net, noisy_data)
 
@@ -122,7 +135,7 @@ def train_noise_model(n2v_modeldirectory,
         assert noisy_data.max() <= hard_upper_threshold
 
     if normalized_version:
-        norm_signal = (signal - signal.mean()) / signal.std()
+        norm_signal = (signal - noisy_data.mean()) / noisy_data.std()
         norm_obs = (noisy_data - noisy_data.mean()) / noisy_data.std()
     else:
         norm_signal = signal.copy()
