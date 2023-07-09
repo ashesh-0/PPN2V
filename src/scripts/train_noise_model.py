@@ -74,13 +74,12 @@ def train_noise_model(
     normalized_version=True,
     n_gaussian=6,
     n_coeff=4,
-    gmm_lowerClip=0.5,
-    gmm_upperClip=100,
     gmm_min_sigma=0.125,
     hard_upper_threshold=None,
     hist_bins=64,
     val_fraction=0.2,
     upperclip_quantile=0.995,
+    lowerclip_quantile=0.005,
 ):
 
     hostname = socket.gethostname()
@@ -93,12 +92,11 @@ def train_noise_model(
         'normalized_version': normalized_version,
         'n_gaussian': n_gaussian,
         'n_coeff': n_coeff,
-        'gmm_lowerClip': gmm_lowerClip,
-        'gmm_upperClip': gmm_upperClip,
         'gmm_min_sigma': gmm_min_sigma,
         'hard_upper_threshold': hard_upper_threshold,
         'hist_bins': hist_bins,
         'upperclip_quantile': upperclip_quantile,
+        'lowerclip_quantile': lowerclip_quantile,
         'val_fraction': val_fraction,
     }
     n2v_config = load_config(n2v_modeldirectory)
@@ -124,6 +122,10 @@ def train_noise_model(
     # upperclip data
     max_val = np.quantile(noisy_data, upperclip_quantile)
     noisy_data[noisy_data > max_val] = max_val
+
+    # lowerclip
+    min_val = np.quantile(noisy_data, lowerclip_quantile)
+    noisy_data[noisy_data < min_val] = min_val
 
     net = get_trained_n2v_model(n2v_modeldirectory, data_dir, data_fileName)
     signal = evaluate_n2v(net, noisy_data)
@@ -169,10 +171,10 @@ def train_noise_model(
                                     n_epochs=2000,
                                     learning_rate=0.01,
                                     name=get_gmm_model_name(dataName, normalized_version, n_gaussian, n_coeff,
-                                                            gmm_lowerClip, gmm_upperClip, gmm_min_sigma,
+                                                            lowerclip_quantile, upperclip_quantile, gmm_min_sigma,
                                                             hard_upper_threshold),
-                                    lowerClip=gmm_lowerClip,
-                                    upperClip=gmm_upperClip)
+                                    lowerClip=0,
+                                    upperClip=100)
 
 
 if __name__ == '__main__':
@@ -182,13 +184,13 @@ if __name__ == '__main__':
     parser.add_argument('--datafname', type=str, default='mito-60x-noise2-lowsnr.tif')
     parser.add_argument('--n2v_model_directory', type=str)
     parser.add_argument('--noise_model_directory', type=str)
-    parser.add_argument('--gmm_lowerClip', type=float, default=0.5)
-    parser.add_argument('--gmm_upperClip', type=float, default=100)
     parser.add_argument('--gmm_min_sigma', type=float, default=0.125)
     parser.add_argument('--n_gaussian', type=int, default=6)
     parser.add_argument('--n_coeff', type=int, default=4)
     parser.add_argument('--hist_bins', type=int, default=64)
     parser.add_argument('--normalized_version', action='store_false')
+    parser.add_argument('--upperclip_quantile', type=float, default=0.995)
+    parser.add_argument('--lowerclip_quantile', type=float, default=0.0)
 
     args = parser.parse_args()
 
@@ -197,15 +199,17 @@ if __name__ == '__main__':
     data_dir = '/group/jug/ashesh/data/ventura_gigascience/'
     data_fileName = 'actin-60x-noise2-highsnr.tif'
 
-    train_noise_model(args.n2v_model_directory,
-                      args.noise_model_directory,
-                      args.datadir,
-                      args.datafname,
-                      normalized_version=args.normalized_version,
-                      n_gaussian=args.n_gaussian,
-                      n_coeff=args.n_coeff,
-                      gmm_lowerClip=args.gmm_lowerClip,
-                      gmm_upperClip=args.gmm_upperClip,
-                      gmm_min_sigma=args.gmm_min_sigma,
-                      hard_upper_threshold=None,
-                      hist_bins=args.hist_bins)
+    train_noise_model(
+        args.n2v_model_directory,
+        args.noise_model_directory,
+        args.datadir,
+        args.datafname,
+        normalized_version=args.normalized_version,
+        n_gaussian=args.n_gaussian,
+        n_coeff=args.n_coeff,
+        gmm_min_sigma=args.gmm_min_sigma,
+        hard_upper_threshold=None,
+        hist_bins=args.hist_bins,
+        upperclip_quantile=args.upperclip_quantile,
+        lowerclip_quantile=args.lowerclip_quantile,
+    )
