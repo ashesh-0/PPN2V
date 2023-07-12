@@ -37,9 +37,14 @@ def get_modelname(datadir, fileName):
     return nameModel
 
 
-def get_noisy_data(datapath):
+def load_data(datapath):
     if datapath.split('.')[-1] == 'npy':
-        return np.load(datapath)
+        try:
+            return np.load(datapath)
+        except:
+            # for BSD68 test dataset, allow_pickle=True is needed.
+            return np.load(datapath, allow_pickle=True)
+
     elif datapath.split('.')[-1] == 'tif':
         return imread(datapath)
     else:
@@ -78,13 +83,13 @@ def train(datadir,
     wandb.init(name=os.path.join(hostname, *exp_directory.split('/')[-2:]), dir=traindir, project="N2V", config=config)
 
     net = UNet(1, depth=unet_depth)
-    data = get_noisy_data(os.path.join(datadir, fname))
+    noisy_data = load_data(os.path.join(datadir, fname))
     nameModel = get_modelname(datadir, fname)
 
     # Split training and validation data.
-    val_count = int(val_fraction * len(data))
-    my_train_data = data[:-1 * val_count].copy()
-    my_val_data = data[-1 * val_count:].copy()
+    val_count = int(val_fraction * len(noisy_data))
+    my_train_data = noisy_data[:-1 * val_count].copy()
+    my_val_data = noisy_data[-1 * val_count:].copy()
 
     # Start training.
     trainHist, valHist = training.trainNetwork(net=net,

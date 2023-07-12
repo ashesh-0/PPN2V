@@ -21,7 +21,7 @@ import src.ppn2v.pn2v.prediction
 from src.ppn2v.experiment_saving import add_git_info, dump_config, get_workdir, load_config
 from src.ppn2v.pn2v import *
 from src.ppn2v.pn2v.utils import *
-from src.scripts.train_n2v import get_bestmodelname, get_noisy_data
+from src.scripts.train_n2v import get_bestmodelname, load_data
 from tifffile import imread
 
 dtype = torch.float
@@ -39,7 +39,7 @@ def evaluate_n2v(net, data):
         im = dataTest[index]
         # We are using tiling to fit the image into memory
         # If you get an error try a smaller patch size (ps)
-        means = src.ppn2v.pn2v.prediction.tiledPredict(im, net, ps=256, overlap=48, device=device, noiseModel=None)
+        means = src.ppn2v.pn2v.prediction.tiledPredict(im, net, ps=128, overlap=48, device=device, noiseModel=None)
         resultImgs.append(means)
 
     return np.array(resultImgs)
@@ -60,14 +60,13 @@ def get_gmm_model_name(dataName, normalized_version, n_gaussian, n_coeff, gmm_lo
     return nameGMMNoiseModel
 
 
-def get_trained_n2v_model(n2v_modeldirectory, data_dir, data_fileName):
-    net_fpath = os.path.join(n2v_modeldirectory, get_bestmodelname(data_dir, data_fileName))
-    net = torch.load(net_fpath)
+def get_trained_n2v_model(n2v_modelpath):
+    net = torch.load(n2v_modelpath)
     return net
 
 
 def train_noise_model(
-    n2v_modeldirectory,
+    n2v_modelpath,
     noise_model_rootdirectory,
     data_dir,
     data_fileName,
@@ -98,8 +97,10 @@ def train_noise_model(
         'upperclip_quantile': upperclip_quantile,
         'lowerclip_quantile': lowerclip_quantile,
         'val_fraction': val_fraction,
+        'exp_directory': exp_directory,
     }
-    n2v_config = load_config(n2v_modeldirectory)
+
+    n2v_config = load_config(os.path.dirname(n2v_modelpath))
     if n2v_config is not None:
         assert n2v_config[
             'fname'] == data_fileName, f'N2V should have been trained on the same data!!, Found {n2v_config["fname"]} for N2V and {data_fileName} for noise model'
@@ -114,7 +115,7 @@ def train_noise_model(
                config=config)
 
     fpath = os.path.join(data_dir, data_fileName)
-    noisy_data = get_noisy_data(fpath)
+    noisy_data = load_data(fpath)
 
     val_N = int(noisy_data.shape[0] * val_fraction)
     noisy_data = noisy_data[val_N:].copy()
@@ -127,7 +128,7 @@ def train_noise_model(
     min_val = np.quantile(noisy_data, lowerclip_quantile)
     noisy_data[noisy_data < min_val] = min_val
 
-    net = get_trained_n2v_model(n2v_modeldirectory, data_dir, data_fileName)
+    net = get_trained_n2v_model(n2v_modelpath)
     signal = evaluate_n2v(net, noisy_data)
 
     if hard_upper_threshold is not None:
@@ -182,8 +183,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--datadir', type=str, default='/group/jug/ashesh/data/ventura_gigascience')
     parser.add_argument('--datafname', type=str, default='mito-60x-noise2-lowsnr.tif')
-    parser.add_argument('--n2v_model_directory', type=str)
-    parser.add_argument('--noise_model_directory', type=str)
+    parser.add_argument('--n2v_modelpath', type=str)
+    parser.add_argument('--noise_model_directory', type=str, default='/home/ashesh.ashesh/training/noise_model/')
     parser.add_argument('--gmm_min_sigma', type=float, default=0.125)
     parser.add_argument('--n_gaussian', type=int, default=6)
     parser.add_argument('--n_coeff', type=int, default=4)
@@ -194,13 +195,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    n2v_modeldirectory = ''
-    noise_model_directory = '/home/ashesh.ashesh/training/noise_model/'
-    data_dir = '/group/jug/ashesh/data/ventura_gigascience/'
-    data_fileName = 'actin-60x-noise2-highsnr.tif'
-
     train_noise_model(
-        args.n2v_model_directory,
+        args.n2v_modelpath,
         args.noise_model_directory,
         args.datadir,
         args.datafname,
