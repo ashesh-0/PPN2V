@@ -29,6 +29,7 @@ def get_modelname(datadir, fileName):
     datadir: /mnt/data/ventura_gigascience
     fileName: 'mito-60x-noise2-lowsnr.tif'
     """
+    fileName = fileName.split('.')[0]
     dset = os.path.basename(datadir)
     dataName = f"{dset}-{fileName.split('-')[0]}"  # This will be used to name the noise2void model
     # print(path,'\n',dataName)
@@ -37,7 +38,12 @@ def get_modelname(datadir, fileName):
 
 
 def get_noisy_data(datapath):
-    return imread(datapath)
+    if datapath.split('.')[-1] == 'npy':
+        return np.load(datapath)
+    elif datapath.split('.')[-1] == 'tif':
+        return imread(datapath)
+    else:
+        raise ValueError('Unknown file type')
 
 
 def train(datadir,
@@ -52,6 +58,8 @@ def train(datadir,
           traindir=None):
     hostname = socket.gethostname()
     exp_directory = get_workdir(traindir, False)
+    print('Experiment directroy: ', exp_directory)
+    print('')
 
     config = {
         'datadir': datadir,
@@ -62,7 +70,8 @@ def train(datadir,
         'stepsPerEpoch': stepsPerEpoch,
         'virtualBatchSize': virtualBatchSize,
         'batchSize': batchSize,
-        'learningRate': learningRate
+        'learningRate': learningRate,
+        'exp_directory': exp_directory,
     }
     add_git_info(config)
     dump_config(config, exp_directory)
