@@ -108,7 +108,7 @@ def train_noise_model(
     add_git_info(config)
     dump_config(config, exp_directory)
 
-    wandb.init(name=os.path.join(hostname, 'noise_models',
+    wandb.init(name=os.path.join(hostname, 'noise_model',
                                  *exp_directory.split('/')[-2:]),
                dir=noise_model_rootdirectory,
                project="N2V",
