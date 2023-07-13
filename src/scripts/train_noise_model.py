@@ -189,18 +189,17 @@ if __name__ == '__main__':
     parser.add_argument('--n_gaussian', type=int, default=6)
     parser.add_argument('--n_coeff', type=int, default=4)
     parser.add_argument('--hist_bins', type=int, default=64)
-    parser.add_argument('--normalized_version', action='store_false')
+    parser.add_argument('--unnormalized_version', action='store_true')
     parser.add_argument('--upperclip_quantile', type=float, default=0.995)
     parser.add_argument('--lowerclip_quantile', type=float, default=0.0)
 
     args = parser.parse_args()
-
     train_noise_model(
         args.n2v_modelpath,
         args.noise_model_directory,
         args.datadir,
         args.datafname,
-        normalized_version=args.normalized_version,
+        normalized_version=(not args.unnormalized_version),
         n_gaussian=args.n_gaussian,
         n_coeff=args.n_coeff,
         gmm_min_sigma=args.gmm_min_sigma,
