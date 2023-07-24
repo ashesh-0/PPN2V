@@ -2,10 +2,11 @@
 #    The Noise Model
 ############################################
 
-import torch
 import numpy as np
+import torch
 
-def createHistogram(bins, minVal ,maxVal ,observation,signal):
+
+def createHistogram(bins, minVal, maxVal, observation, signal):
     '''
     Creates a 2D histogram from 'observation' and 'signal' 
 
@@ -34,38 +35,32 @@ def createHistogram(bins, minVal ,maxVal ,observation,signal):
         'histogram[2,...]' holds the upper boundaries of each bin in y.
         The values for x can be obtained by transposing 'histogram[1,...]' and 'histogram[2,...]'.
     '''
-    
-    imgFactor=int(observation.shape[0]/signal.shape[0])
-    histogram=np.zeros((3,bins,bins))
-    ra=[minVal,maxVal]
-        
-    for i in range (observation.shape[0]):
-        observation_=observation[i].copy().ravel()
 
+    imgFactor = int(observation.shape[0] / signal.shape[0])
+    histogram = np.zeros((3, bins, bins))
+    ra = [minVal, maxVal]
 
-        signal_=(signal[i//imgFactor].copy()).ravel()
+    for i in range(observation.shape[0]):
+        observation_ = observation[i].copy().ravel()
 
-        a =np.histogram2d(signal_,observation_, bins=bins, range=[ra, ra])
-        histogram[0]=histogram[0]+a[0]+1e-30 #This is for numerical stability
-        
-    
+        signal_ = (signal[i // imgFactor].copy()).ravel()
+        a = np.histogram2d(signal_, observation_, bins=bins, range=[ra, ra])
+        histogram[0] = histogram[0] + a[0] + 1e-30  #This is for numerical stability
 
-    for i in range (bins):
-            if np.sum(histogram[0,i,:]) > 1e-20: #We exclude empty rows from normalization
-                histogram[0,i,:]/=np.sum(histogram[0,i,:]) # we normalize each non-empty row
-    
-    
-    for i in range (bins):
-        histogram[1,:,i]=a[1][:-1] # The lower boundaries of each bin in y are stored in dimension 1
-        histogram[2,:,i]=a[1][1:]  # The upper boundaries of each bin in y are stored in dimension 2
-        # The accordent numbers for x are just transopsed. 
-            
+    for i in range(bins):
+        if np.sum(histogram[0, i, :]) > 1e-20:  #We exclude empty rows from normalization
+            histogram[0, i, :] /= np.sum(histogram[0, i, :])  # we normalize each non-empty row
+
+    for i in range(bins):
+        histogram[1, :, i] = a[1][:-1]  # The lower boundaries of each bin in y are stored in dimension 1
+        histogram[2, :, i] = a[1][1:]  # The upper boundaries of each bin in y are stored in dimension 2
+        # The accordent numbers for x are just transopsed.
+
     return histogram
 
 
+class NoiseModel:
 
-
-class NoiseModel:   
     def __init__(self, histogram, device):
         '''
         Creates a NoiseModel object.
@@ -77,22 +72,22 @@ class NoiseModel:
         device: 
             The device your NoiseModel lives on, e.g. your GPU.
         '''
-        self.device=device
-            
+        self.device = device
+
         # The number of bins is the same in x and y
-        bins=histogram.shape[1]
-        
+        bins = histogram.shape[1]
+
         # The lower boundaries of each bin in y are stored in dimension 1
-        self.minv=np.min(histogram[1,...])
-        
+        self.minv = np.min(histogram[1, ...])
+
         # The upper boundaries of each bin in y are stored in dimension 2
-        self.maxv=np.max(histogram[2,...])
-       
+        self.maxv = np.max(histogram[2, ...])
+
         # move everything to GPU
-        self.bins=torch.Tensor(np.array(float(bins))).to(self.device)
-        self.fullHist=torch.Tensor(histogram[0,...].astype(np.float32)).to(self.device)
-        
-    def likelihood(self, obs,signal):
+        self.bins = torch.Tensor(np.array(float(bins))).to(self.device)
+        self.fullHist = torch.Tensor(histogram[0, ...].astype(np.float32)).to(self.device)
+
+    def likelihood(self, obs, signal):
         '''
         Calculate the likelihood p(x_i|s_i) for every pixel in a tensor, using a histogram based noise model.
         To ensure differentiability in the direction of s_i, we linearly interpolate in this direction.
@@ -109,18 +104,18 @@ class NoiseModel:
         ----------   
         Torch tensor containing the observation likelihoods according to the noise model.
         '''
-        obsF=self.getIndexObsFloat(obs)
-        obs_=obsF.floor().long()
-        signalF=self.getIndexSignalFloat(signal)
-        signal_=signalF.floor().long()
-        fact=signalF-signal_.float()
+        obsF = self.getIndexObsFloat(obs)
+        obs_ = obsF.floor().long()
+        signalF = self.getIndexSignalFloat(signal)
+        signal_ = signalF.floor().long()
+        fact = signalF - signal_.float()
 
         # Finally we are looking ud the values and interpolate
-        return self.fullHist[signal_,obs_]*(1.0-fact) + self.fullHist[torch.clamp((signal_+1).long(),0,self.bins.long()),obs_]*(fact)
-
+        return self.fullHist[signal_, obs_] * (1.0 - fact) + self.fullHist[torch.clamp(
+            (signal_ + 1).long(), 0, self.bins.long()), obs_] * (fact)
 
     def getIndexObsFloat(self, x):
-        return torch.clamp(self.bins*(x-self.minv)/(self.maxv-self.minv),min=0.0,max=self.bins-1-1e-3)
+        return torch.clamp(self.bins * (x - self.minv) / (self.maxv - self.minv), min=0.0, max=self.bins - 1 - 1e-3)
 
     def getIndexSignalFloat(self, x):
-        return torch.clamp(self.bins*(x-self.minv)/(self.maxv-self.minv),min=0.0,max=self.bins-1-1e-3)
+        return torch.clamp(self.bins * (x - self.minv) / (self.maxv - self.minv), min=0.0, max=self.bins - 1 - 1e-3)

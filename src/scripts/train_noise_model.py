@@ -24,6 +24,14 @@ from src.ppn2v.pn2v.utils import *
 from src.scripts.train_n2v import get_bestmodelname, load_data
 from tifffile import imread
 
+
+def slashstrip(path):
+    if path[-1] == '/':
+        return path[:-1]
+    else:
+        return path
+
+
 dtype = torch.float
 device = torch.device("cuda:0")
 
@@ -150,7 +158,7 @@ def train_noise_model(
     min_obs = np.percentile(norm_obs, 0.0)
     max_obs = np.percentile(norm_obs, 100)
 
-    dataName = f"ventura_gigascience-{data_fileName.split('-')[0]}"
+    dataName = f"{os.path.basename(slashstrip(data_dir))}-{data_fileName.split('-')[0]}"
     histogram = src.ppn2v.pn2v.histNoiseModel.createHistogram(hist_bins, min_obs, max_obs, norm_obs, norm_signal)
     hist_path = os.path.join(exp_directory, get_hist_model_name(dataName, normalized_version, hist_bins) + '.npy')
     np.save(hist_path, histogram)
