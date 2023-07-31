@@ -60,7 +60,9 @@ def train(datadir,
           virtualBatchSize=20,
           batchSize=1,
           learningRate=1e-3,
-          traindir=None):
+          traindir=None,
+          add_gaussian_noise_std=0.0,
+          enable_poisson_noise=False):
     hostname = socket.gethostname()
     exp_directory = get_workdir(traindir, False)
     print('Experiment directroy: ', exp_directory)
@@ -77,6 +79,8 @@ def train(datadir,
         'batchSize': batchSize,
         'learningRate': learningRate,
         'exp_directory': exp_directory,
+        'enable_poisson_noise': enable_poisson_noise,
+        'add_gaussian_noise_std': add_gaussian_noise_std,
     }
     add_git_info(config)
     dump_config(config, exp_directory)
@@ -84,6 +88,12 @@ def train(datadir,
 
     net = UNet(1, depth=unet_depth)
     noisy_data = load_data(os.path.join(datadir, fname))
+    assert enable_poisson_noise is False or add_gaussian_noise_std == 0.0, 'Cannot enable both poisson and gaussian noise'
+    if enable_poisson_noise:
+        noisy_data = np.random.poisson(noisy_data)
+    elif add_gaussian_noise_std > 0.0:
+        noisy_data = noisy_data + np.random.normal(0, add_gaussian_noise_std, noisy_data.shape)
+
     nameModel = get_modelname(datadir, fname)
 
     # Split training and validation data.
@@ -120,6 +130,9 @@ if __name__ == '__main__':
     parser.add_argument('--batchSize', type=int, default=1)
     parser.add_argument('--learningRate', type=float, default=1e-3)
     parser.add_argument('--traindir', type=str, default=os.path.expanduser('~/training/N2V/'))
+    parser.add_argument('--add_gaussian_noise_std', type=float, default=0.0)
+    parser.add_argument('--enable_poisson_noise', action='store_true')
+
     args = parser.parse_args()
 
     train(args.datadir,
@@ -131,7 +144,9 @@ if __name__ == '__main__':
           virtualBatchSize=args.virtualBatchSize,
           batchSize=args.batchSize,
           learningRate=args.learningRate,
-          traindir=args.traindir)
+          traindir=args.traindir,
+          add_gaussian_noise_std=args.add_gaussian_noise_std,
+          enable_poisson_noise=args.enable_poisson_noise)
 
     # plt.xlabel('epoch')
     # plt.ylabel('loss')
