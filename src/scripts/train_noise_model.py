@@ -125,6 +125,11 @@ def train_noise_model(
     fpath = os.path.join(data_dir, data_fileName)
     noisy_data = load_data(fpath)
 
+    if n2v_config.get('enable_poisson_noise', False):
+        noisy_data = np.random.poisson(noisy_data)
+    elif n2v_config.get('add_gaussian_noise_std', 0.0) > 0.0:
+        noisy_data = noisy_data + np.random.normal(0, n2v_config['add_gaussian_noise_std'], noisy_data.shape)
+
     val_N = int(noisy_data.shape[0] * val_fraction)
     noisy_data = noisy_data[val_N:].copy()
 
