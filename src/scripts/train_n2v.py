@@ -4,6 +4,7 @@ warnings.filterwarnings('ignore')
 import argparse
 import os
 import socket
+from typing import Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,15 +25,26 @@ def get_bestmodelname(datadir, fileName):
     return f'best_{fname}.net'
 
 
-def get_modelname(datadir, fileName):
+def get_modelname(datadir, fileName: Union[str, Tuple[str, str]]):
     """
     datadir: /mnt/data/ventura_gigascience
     fileName: 'mito-60x-noise2-lowsnr.tif'
     """
-    fileName = fileName.split('.')[0]
     dset = os.path.basename(datadir)
-    dataName = f"{dset}-{fileName.split('-')[0]}"  # This will be used to name the noise2void model
-    # print(path,'\n',dataName)
+    if isinstance(fileName, tuple):
+        fname1 = fileName[0]
+        fname1 = fname1.split('.')[0]
+        fname1 = fname1.split('-')[0]
+
+        fname2 = fileName[1]
+        fname2 = fname2.split('.')[0]
+        fname2 = fname2.split('-')[0]
+
+        dataName = f"{dset}-{fname1}-{fname2}"
+    else:
+        fileName = fileName.split('.')[0]
+        dataName = f"{dset}-{fileName.split('-')[0]}"  # This will be used to name the noise2void model
+
     nameModel = dataName + '-n2v'
     return nameModel
 
@@ -70,7 +82,7 @@ def train(datadir,
 
     config = {
         'datadir': datadir,
-        'fname': fname,
+        # 'fname': fname,
         'unet_depth': unet_depth,
         'val_fraction': val_fraction,
         'numOfEpochs': numOfEpochs,
@@ -82,12 +94,34 @@ def train(datadir,
         'enable_poisson_noise': enable_poisson_noise,
         'add_gaussian_noise_std': add_gaussian_noise_std,
     }
+    fname1 = fname2 = None
+
+    if isinstance(fname, tuple) and fname[1] == '':
+        fname = fname[0]
+
+    if isinstance(fname, tuple):
+        config['fname'] = fname[0]
+        config['fname2'] = fname[1]
+        assert len(fname) == 2
+        fname1 = fname[0]
+        fname2 = fname[1]
+    else:
+        assert isinstance(fname, str)
+        config['fname'] = fname
+
     add_git_info(config)
     dump_config(config, exp_directory)
     wandb.init(name=os.path.join(hostname, *exp_directory.split('/')[-2:]), dir=traindir, project="N2V", config=config)
 
     net = UNet(1, depth=unet_depth)
-    noisy_data = load_data(os.path.join(datadir, fname))
+    if fname1 is not None:
+        assert fname2 is not None
+        noisy_data1 = load_data(os.path.join(datadir, fname1))
+        noisy_data2 = load_data(os.path.join(datadir, fname2))
+        noisy_data = noisy_data1 + noisy_data2
+    else:
+        noisy_data = load_data(os.path.join(datadir, fname))
+
     assert enable_poisson_noise is False or add_gaussian_noise_std == 0.0, 'Cannot enable both poisson and gaussian noise'
     if enable_poisson_noise:
         noisy_data = np.random.poisson(noisy_data)
@@ -122,6 +156,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--datadir', type=str, default='/group/jug/ashesh/data/ventura_gigascience')
     parser.add_argument('--fname', type=str, default='mito-60x-noise2-lowsnr.tif')
+    parser.add_argument('--fname2', type=str, default='')
     parser.add_argument('--unet_depth', type=int, default=3)
     parser.add_argument('--val_fraction', type=float, default=0.05)
     parser.add_argument('--numOfEpochs', type=int, default=200)
@@ -135,8 +170,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    train(args.datadir,
-          args.fname,
+    train(args.datadir, (args.fname, args.fname2),
           unet_depth=args.unet_depth,
           val_fraction=args.val_fraction,
           numOfEpochs=args.numOfEpochs,

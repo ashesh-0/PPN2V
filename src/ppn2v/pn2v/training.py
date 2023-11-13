@@ -1,10 +1,11 @@
-import torch.optim as optim
 import os
-import torch
 import time
 
 import numpy as np
+import torch
+import torch.optim as optim
 import wandb
+
 from . import utils
 
 ############################################
@@ -16,7 +17,7 @@ def getStratifiedCoords2D(numPix, shape):
     '''
     Produce a list of approx. 'numPix' random coordinate, sampled from 'shape' using startified sampling.
     '''
-    box_size = np.round(np.sqrt(shape[0] * shape[1] / numPix)).astype(np.int)
+    box_size = np.round(np.sqrt(shape[0] * shape[1] / numPix)).astype(np.int32)
     coords = []
     box_count_y = int(np.ceil(shape[0] / box_size))
     box_count_x = int(np.ceil(shape[1] / box_size))
@@ -66,31 +67,29 @@ def randomCropFRI(data, size, numPix, supervised=False, counter=None, augment=Tr
         The updated counter parameter, it is increased by one.
         When the counter reaches the end of the dataset, it is reset to zero and the dataset is shuffled.
     '''
-    
+
     if counter is None:
-        index=np.random.randint(0, data.shape[0])
+        index = np.random.randint(0, data.shape[0])
     else:
-        if counter>=data.shape[0]:
-            counter=0
+        if counter >= data.shape[0]:
+            counter = 0
             np.random.shuffle(data)
-        index=counter
-        counter+=1
+        index = counter
+        counter += 1
 
     if supervised:
-        img=data[index,...,0]
-        imgClean=data[index,...,1]
-        manipulate=False
+        img = data[index, ..., 0]
+        imgClean = data[index, ..., 1]
+        manipulate = False
     else:
-        img=data[index]
-        imgClean=img
-        manipulate=True
-        
-    imgOut, imgOutC, mask = randomCrop(img, size, numPix,
-                                      imgClean=imgClean,
-                                      augment=augment,
-                                      manipulate = manipulate )
-    
+        img = data[index]
+        imgClean = img
+        manipulate = True
+
+    imgOut, imgOutC, mask = randomCrop(img, size, numPix, imgClean=imgClean, augment=augment, manipulate=manipulate)
+
     return imgOut, imgOutC, mask, counter
+
 
 def randomCrop(img, size, numPix, imgClean=None, augment=True, manipulate=True):
     '''
@@ -122,52 +121,51 @@ def randomCrop(img, size, numPix, imgClean=None, augment=True, manipulate=True):
         An image marking which pixels have been manipulated (value 1) and which not (value 0).
         In N2V or PN2V only these pixels should be used to calculate gradients.
     '''
-    
+
     assert img.shape[0] >= size
     assert img.shape[1] >= size
 
     x = np.random.randint(0, img.shape[1] - size + 1)
     y = np.random.randint(0, img.shape[0] - size + 1)
 
-    imgOut = img[y:y+size, x:x+size].copy()
-    imgOutC= imgClean[y:y+size, x:x+size].copy()
-    
-    maxA=imgOut.shape[1]-1
-    maxB=imgOut.shape[0]-1
-    
-    if manipulate:
-        mask=np.zeros(imgOut.shape)
-        hotPixels=getStratifiedCoords2D(numPix,imgOut.shape)
-        for p in hotPixels:
-            a,b=p[1],p[0]
+    imgOut = img[y:y + size, x:x + size].copy()
+    imgOutC = imgClean[y:y + size, x:x + size].copy()
 
-            roiMinA=max(a-2,0)
-            roiMaxA=min(a+3,maxA)
-            roiMinB=max(b-2,0)
-            roiMaxB=min(b+3,maxB)
-            roi=imgOut[roiMinB:roiMaxB,roiMinA:roiMaxA]
+    maxA = imgOut.shape[1] - 1
+    maxB = imgOut.shape[0] - 1
+
+    if manipulate:
+        mask = np.zeros(imgOut.shape)
+        hotPixels = getStratifiedCoords2D(numPix, imgOut.shape)
+        for p in hotPixels:
+            a, b = p[1], p[0]
+
+            roiMinA = max(a - 2, 0)
+            roiMaxA = min(a + 3, maxA)
+            roiMinB = max(b - 2, 0)
+            roiMaxB = min(b + 3, maxB)
+            roi = imgOut[roiMinB:roiMaxB, roiMinA:roiMaxA]
             a_ = 2
             b_ = 2
-            while a_==2 and b_==2:
-                a_ = np.random.randint(0, roi.shape[1] )
-                b_ = np.random.randint(0, roi.shape[0] )
+            while a_ == 2 and b_ == 2:
+                a_ = np.random.randint(0, roi.shape[1])
+                b_ = np.random.randint(0, roi.shape[0])
 
-            repl=roi[b_,a_]
-            imgOut[b,a]=repl
-            mask[b,a]=1.0
+            repl = roi[b_, a_]
+            imgOut[b, a] = repl
+            mask[b, a] = 1.0
     else:
-        mask=np.ones(imgOut.shape)
+        mask = np.ones(imgOut.shape)
 
     if augment:
-        rot=np.random.randint(0,4)
-        imgOut=np.array(np.rot90(imgOut,rot))
-        imgOutC=np.array(np.rot90(imgOutC,rot))
-        mask=np.array(np.rot90(mask,rot))
-        if np.random.choice((True,False)):
-            imgOut=np.array(np.flip(imgOut))
-            imgOutC=np.array(np.flip(imgOutC))
-            mask=np.array(np.flip(mask))
-
+        rot = np.random.randint(0, 4)
+        imgOut = np.array(np.rot90(imgOut, rot))
+        imgOutC = np.array(np.rot90(imgOutC, rot))
+        mask = np.array(np.rot90(mask, rot))
+        if np.random.choice((True, False)):
+            imgOut = np.array(np.flip(imgOut))
+            imgOutC = np.array(np.flip(imgOutC))
+            mask = np.array(np.flip(mask))
 
     return imgOut, imgOutC, mask
 
@@ -206,63 +204,63 @@ def trainingPred(my_train_data, net, dataCounter, size, bs, numPix, device, augm
         The updated counter parameter, it is increased by one.
         When the counter reaches the end of the dataset, it is reset to zero and the dataset is shuffled.
     '''
-    
+
     # Init Variables
-    inputs= torch.zeros(bs,1,size,size)
-    labels= torch.zeros(bs,size,size)
-    masks= torch.zeros(bs,size,size)
-   
+    inputs = torch.zeros(bs, 1, size, size)
+    labels = torch.zeros(bs, size, size)
+    masks = torch.zeros(bs, size, size)
 
     # Assemble mini batch
     for j in range(bs):
-        im,l,m, dataCounter=randomCropFRI(my_train_data,
-                                          size,
-                                          numPix,
-                                          counter=dataCounter,
-                                          augment=augment,
-                                          supervised=supervised)
-        inputs[j,:,:,:]=utils.imgToTensor(im)
-        labels[j,:,:]=utils.imgToTensor(l)
-        masks[j,:,:]=utils.imgToTensor(m)
+        im, l, m, dataCounter = randomCropFRI(my_train_data,
+                                              size,
+                                              numPix,
+                                              counter=dataCounter,
+                                              augment=augment,
+                                              supervised=supervised)
+        inputs[j, :, :, :] = utils.imgToTensor(im)
+        labels[j, :, :] = utils.imgToTensor(l)
+        masks[j, :, :] = utils.imgToTensor(m)
 
     # Move to GPU
-    inputs_raw, labels, masks= inputs.to(device), labels.to(device), masks.to(device)
+    inputs_raw, labels, masks = inputs.to(device), labels.to(device), masks.to(device)
 
     # Move normalization parameter to GPU
-    stdTorch=torch.Tensor(np.array(net.std)).to(device)
-    meanTorch=torch.Tensor(np.array(net.mean)).to(device)
-    
+    stdTorch = torch.Tensor(np.array(net.std)).to(device)
+    meanTorch = torch.Tensor(np.array(net.mean)).to(device)
+
     # Forward step
-    outputs = net((inputs_raw-meanTorch)/stdTorch) * 10.0 #We found that this factor can speed up training
-    samples=(outputs).permute(1, 0, 2, 3)
-    
+    outputs = net((inputs_raw - meanTorch) / stdTorch) * 10.0  #We found that this factor can speed up training
+    samples = (outputs).permute(1, 0, 2, 3)
+
     # Denormalize
     samples = utils.denormalize(samples, meanTorch, stdTorch)
-    
+
     return samples, labels, masks, dataCounter
+
 
 def lossFunctionN2V(samples, labels, masks):
     '''
     The loss function as described in Eq. 7 of the paper.
     '''
-        
-    errors=(labels-torch.mean(samples,dim=0))**2
+
+    errors = (labels - torch.mean(samples, dim=0))**2
 
     # Average over pixels and batch
-    loss= torch.sum( errors *masks  ) /torch.sum(masks)
+    loss = torch.sum(errors * masks) / torch.sum(masks)
     return loss
+
 
 def lossFunctionPN2V(samples, labels, masks, noiseModel):
     '''
     The loss function as described in Eq. 7 of the paper.
     '''
-    
 
-    likelihoods=noiseModel.likelihood(labels,samples)
-    likelihoods_avg=torch.log(torch.mean(likelihoods,dim=0,keepdim=True)[0,...] )
+    likelihoods = noiseModel.likelihood(labels, samples)
+    likelihoods_avg = torch.log(torch.mean(likelihoods, dim=0, keepdim=True)[0, ...])
 
     # Average over pixels and batch
-    loss= -torch.sum( likelihoods_avg *masks  ) /torch.sum(masks)
+    loss = -torch.sum(likelihoods_avg * masks) / torch.sum(masks)
     return loss
 
 
@@ -270,19 +268,26 @@ def lossFunction(samples, labels, masks, noiseModel, pn2v, std=None):
     if pn2v:
         return lossFunctionPN2V(samples, labels, masks, noiseModel)
     else:
-        return lossFunctionN2V(samples, labels, masks)/(std**2)
+        return lossFunctionN2V(samples, labels, masks) / (std**2)
 
 
-
-def trainNetwork(net, trainData, valData, noiseModel, postfix, device,
+def trainNetwork(net,
+                 trainData,
+                 valData,
+                 noiseModel,
+                 postfix,
+                 device,
                  directory='.',
-                 numOfEpochs=200, stepsPerEpoch=50,
-                 batchSize=4, patchSize=100, learningRate=0.0001,
-                 numMaskedPixels=100*100/32.0, 
-                 virtualBatchSize=20, valSize=20,
+                 numOfEpochs=200,
+                 stepsPerEpoch=50,
+                 batchSize=4,
+                 patchSize=100,
+                 learningRate=0.0001,
+                 numMaskedPixels=100 * 100 / 32.0,
+                 virtualBatchSize=20,
+                 valSize=20,
                  augment=True,
-                 supervised=False
-                 ):
+                 supervised=False):
     '''
     Train a network using PN2V
     
@@ -330,48 +335,48 @@ def trainNetwork(net, trainData, valData, noiseModel, postfix, device,
     valHist: numpy array
         A numpy array containing the avg. validation loss after each epoch.
     '''
-        
+
     # Calculate mean and std of data.
     # Everything that is processed by the net will be normalized and denormalized using these numbers.
-    combined=np.concatenate((trainData,valData))
-    net.mean=np.mean(combined)
-    net.std=np.std(combined)
-    
+    combined = np.concatenate((trainData, valData))
+    net.mean = np.mean(combined)
+    net.std = np.std(combined)
+
     net.to(device)
-    
+
     optimizer = optim.Adam(net.parameters(), lr=learningRate)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=10, factor=0.5, verbose=True)
 
     running_loss = 0.0
-    stepCounter=0
-    dataCounter=0
+    stepCounter = 0
+    dataCounter = 0
 
-    trainHist=[]
-    valHist=[]
-        
-    pn2v= (noiseModel is not None) and (not supervised)
-    
+    trainHist = []
+    valHist = []
+
+    pn2v = (noiseModel is not None) and (not supervised)
+
     print("Start training")
     start = time.time()
     while stepCounter / stepsPerEpoch < numOfEpochs:  # loop over the dataset multiple times
 
-        losses=[]
+        losses = []
         optimizer.zero_grad()
-        stepCounter+=1
-        wandb.log({"stepCounter":stepCounter})
+        stepCounter += 1
+        wandb.log({"stepCounter": stepCounter})
 
         # Loop over our virtual batch
-        for a in range (virtualBatchSize):
+        for a in range(virtualBatchSize):
             outputs, labels, masks, dataCounter = trainingPred(trainData,
                                                                net,
                                                                dataCounter,
-                                                               patchSize, 
+                                                               patchSize,
                                                                batchSize,
                                                                numMaskedPixels,
                                                                device,
-                                                               augment = augment,
-                                                               supervised = supervised)
-            loss=lossFunction(outputs, labels, masks, noiseModel, pn2v, net.std)
+                                                               augment=augment,
+                                                               supervised=supervised)
+            loss = lossFunction(outputs, labels, masks, noiseModel, pn2v, net.std)
             loss.backward()
             running_loss += loss.item()
             losses.append(loss.item())
@@ -381,51 +386,52 @@ def trainNetwork(net, trainData, valData, noiseModel, postfix, device,
         if stepCounter % 100 == 9:
             utils.printNow(f"Finished step {stepCounter}/{stepsPerEpoch}")
 
-        wandb.log({"train_loss":np.mean(losses)})
+        wandb.log({"train_loss": np.mean(losses)})
         # We have reached the end of an epoch
-        if stepCounter % stepsPerEpoch == stepsPerEpoch-1:
-            running_loss=(np.mean(losses))
+        if stepCounter % stepsPerEpoch == stepsPerEpoch - 1:
+            running_loss = (np.mean(losses))
 
-            losses=np.array(losses)
-            utils.printNow("Epoch "+str(int(stepCounter / stepsPerEpoch))+" finished")
-            utils.printNow("avg. loss: "+str(np.mean(losses))+"+-(2SEM)"+str(2.0*np.std(losses)/np.sqrt(losses.size)))
+            losses = np.array(losses)
+            utils.printNow("Epoch " + str(int(stepCounter / stepsPerEpoch)) + " finished")
+            utils.printNow("avg. loss: " + str(np.mean(losses)) + "+-(2SEM)" +
+                           str(2.0 * np.std(losses) / np.sqrt(losses.size)))
 
             # timing
             end = time.time()
-            t_epoch = (end- start) / 60 # in min
-            utils.printNow("Epoch time: "+str(t_epoch)+" min")
+            t_epoch = (end - start) / 60  # in min
+            utils.printNow("Epoch time: " + str(t_epoch) + " min")
             start = end
 
             trainHist.append(np.mean(losses))
-            losses=[]
-            torch.save(net,os.path.join(directory,"last_"+postfix+".net"))
+            losses = []
+            torch.save(net, os.path.join(directory, "last_" + postfix + ".net"))
 
-            valCounter=0
+            valCounter = 0
             net.train(False)
-            losses=[]
+            losses = []
             for i in range(valSize):
                 outputs, labels, masks, valCounter = trainingPred(valData,
                                                                   net,
                                                                   valCounter,
-                                                                  patchSize, 
+                                                                  patchSize,
                                                                   batchSize,
                                                                   numMaskedPixels,
                                                                   device,
-                                                                  augment = augment,
-                                                                  supervised = supervised)
-                loss=lossFunction(outputs, labels, masks, noiseModel, pn2v, net.std)
+                                                                  augment=augment,
+                                                                  supervised=supervised)
+                loss = lossFunction(outputs, labels, masks, noiseModel, pn2v, net.std)
                 losses.append(loss.item())
             net.train(True)
-            avgValLoss=np.mean(losses)
-            wandb.log({"val_loss":avgValLoss})
+            avgValLoss = np.mean(losses)
+            wandb.log({"val_loss": avgValLoss})
 
-            if len(valHist)==0 or avgValLoss < np.min(np.array(valHist)):
-                torch.save(net,os.path.join(directory,"best_"+postfix+".net"))
+            if len(valHist) == 0 or avgValLoss < np.min(np.array(valHist)):
+                torch.save(net, os.path.join(directory, "best_" + postfix + ".net"))
             valHist.append(avgValLoss)
             scheduler.step(avgValLoss)
-            epoch= (stepCounter / stepsPerEpoch)
-            np.save(os.path.join(directory,"history"+postfix+".npy"), (np.array( [np.arange(epoch),trainHist,valHist ] ) ) )
-
+            epoch = (stepCounter / stepsPerEpoch)
+            np.save(os.path.join(directory, "history" + postfix + ".npy"),
+                    (np.array([np.arange(epoch), trainHist, valHist])))
 
     utils.printNow('Finished Training')
     return trainHist, valHist

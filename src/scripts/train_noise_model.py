@@ -126,6 +126,7 @@ def train_noise_model(
     noisy_data = load_data(fpath)
 
     if n2v_config.get('enable_poisson_noise', False):
+        print('Enabling poisson noise for N2V model')
         noisy_data = np.random.poisson(noisy_data)
     elif n2v_config.get('add_gaussian_noise_std', 0.0) > 0.0:
         noisy_data = noisy_data + np.random.normal(0, n2v_config['add_gaussian_noise_std'], noisy_data.shape)
