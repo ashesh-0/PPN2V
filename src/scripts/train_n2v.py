@@ -50,6 +50,7 @@ def get_modelname(datadir, fileName: Union[str, Tuple[str, str]]):
 
 
 def load_data(datapath):
+    print('Loading data from: ', datapath)
     if datapath.split('.')[-1] == 'npy':
         try:
             return np.load(datapath)
