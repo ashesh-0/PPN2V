@@ -114,7 +114,7 @@ def train(datadir,
     dump_config(config, exp_directory)
     wandb.init(name=os.path.join(hostname, *exp_directory.split('/')[-2:]), dir=traindir, project="N2V", config=config)
 
-    net = UNet(1, depth=unet_depth)
+    net = UNet(2, depth=unet_depth)
     if fname1 is not None:
         assert fname2 is not None
         noisy_data1 = load_data(os.path.join(datadir, fname1))

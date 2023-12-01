@@ -302,7 +302,11 @@ class UnetDecoder(nn.Module):
         for n in range(depth):
             decoder_blocks.append(upsampling)
             in_channels = num_channels_init * 2**(depth - n)
-            out_channels = num_channels_init
+            if n < depth - 1:
+                out_channels = int(num_channels_init * 2**(depth - n - 2))
+            else:
+                out_channels = int(num_channels_init * 2**(depth - n - 1))
+
             decoder_blocks.append(
                 Conv_Block(
                     conv_dim,
