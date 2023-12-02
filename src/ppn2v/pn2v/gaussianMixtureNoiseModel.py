@@ -66,7 +66,6 @@ class GaussianMixtureNoiseModel:
             self.weight = weight
             self.min_signal = torch.Tensor([min_signal]).to(self.device)
             self.max_signal = torch.Tensor([max_signal]).to(self.device)
-            self.tol = torch.Tensor([1e-10]).to(self.device)
         else:
             params = kwargs.get('params')
             self.min_signal = params['min_signal'][0]
@@ -76,7 +75,7 @@ class GaussianMixtureNoiseModel:
             self.min_sigma = np.asscalar(params['min_sigma'])
             self.n_gaussian = self.weight.shape[0] // 3
             self.n_coeff = self.weight.shape[1]
-            self.tol = torch.Tensor([1e-10]).to(self.device)
+        self.tol = torch.Tensor([1e-4]).to(self.device)
 
     def polynomialRegressor(self, weightParams, signals):
         """Combines `weightParams` and signal `signals` to regress for the gaussian parameter values.
@@ -265,9 +264,8 @@ class GaussianMixtureNoiseModel:
         sig_obs_pairs = self.getSignalObservationPairs(signal, observation, lowerClip, upperClip)
         counter = 0
         optimizer = torch.optim.Adam([self.weight], lr=learning_rate)
+        loss_arr = []
         for t in range(n_epochs):
-
-            jointLoss = 0
             if (counter + 1) * batchSize >= sig_obs_pairs.shape[0]:
                 counter = 0
                 sig_obs_pairs = fastShuffle(sig_obs_pairs, 1)
@@ -278,11 +276,11 @@ class GaussianMixtureNoiseModel:
             observations = torch.from_numpy(observations.astype(np.float32)).float().to(self.device)
             signals = torch.from_numpy(signals).float().to(self.device)
             p = self.likelihood(observations, signals)
-            loss = torch.mean(-torch.log(p))
-            jointLoss = jointLoss + loss
-
+            jointLoss = torch.mean(-torch.log(p))
+            loss_arr.append(jointLoss.item())
             if t % 100 == 0:
-                print(t, jointLoss.item())
+                print(t, np.mean(loss_arr))
+                loss_arr = []
 
             if (t % (int(n_epochs * 0.5)) == 0):
                 trained_weight = self.weight.cpu().detach().numpy()
