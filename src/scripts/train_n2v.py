@@ -128,6 +128,8 @@ def train(datadir,
         noisy_data = np.random.poisson(noisy_data)
     elif add_gaussian_noise_std > 0.0:
         noisy_data = noisy_data + np.random.normal(0, add_gaussian_noise_std, noisy_data.shape)
+        # we make sure that the noisy data is positive and the entire noise distribution is above zero
+        noisy_data = noisy_data - noisy_data.min()
 
     nameModel = get_modelname(datadir, fname)
 
