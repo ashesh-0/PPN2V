@@ -173,14 +173,20 @@ class GaussianMixtureNoiseModel:
         sum_alpha = 0
         for al in range(kernels):
             sum_alpha = alpha[al] + sum_alpha
+
+        # sum of alpha is forced to be 1.
         for ker in range(kernels):
             alpha[ker] = alpha[ker] / sum_alpha
 
         sum_means = 0
+        # sum_means is the alpha weighted average of the means
         for ker in range(kernels):
             sum_means = alpha[ker] * mu[ker] + sum_means
 
         mu_shifted = []
+        # subtracting the alpha weighted average of the means from the means
+        # ensures that the GMM has the inclination to have the mean=signals.
+        # its like a residual conection. I don't understand why we need to learn the mean?
         for ker in range(kernels):
             mu[ker] = mu[ker] - sum_means + signals
 
