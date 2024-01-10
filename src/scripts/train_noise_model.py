@@ -158,9 +158,6 @@ def train_noise_model(
         norm_signal = signal.copy()
         norm_obs = noisy_data.copy()
 
-    min_signal = np.percentile(norm_signal, 0.0)
-    max_signal = np.percentile(norm_signal, 100)
-
     min_obs = np.percentile(norm_obs, 0.0)
     max_obs = np.percentile(norm_obs, 100)
 
@@ -170,6 +167,9 @@ def train_noise_model(
     np.save(hist_path, histogram)
     print('Histogram model saved at', hist_path)
 
+    # Code below ensures that both GMM and histogram based models use the same min max signal.
+    min_signal = np.min(histogram[1, ...])
+    max_signal = np.max(histogram[2, ...])
     gaussianMixtureNoiseModel = src.ppn2v.pn2v.gaussianMixtureNoiseModel.GaussianMixtureNoiseModel(
         min_signal=min_signal,
         max_signal=max_signal,
