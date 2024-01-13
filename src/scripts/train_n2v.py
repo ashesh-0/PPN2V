@@ -64,18 +64,22 @@ def load_data(datapath):
         raise ValueError('Unknown file type')
 
 
-def train(datadir,
-          fname,
-          unet_depth=3,
-          val_fraction=0.05,
-          numOfEpochs=200,
-          stepsPerEpoch=10,
-          virtualBatchSize=20,
-          batchSize=1,
-          learningRate=1e-3,
-          traindir=None,
-          add_gaussian_noise_std=0.0,
-          enable_poisson_noise=False):
+def train(
+    datadir,
+    fname,
+    unet_depth=3,
+    val_fraction=0.05,
+    numOfEpochs=200,
+    stepsPerEpoch=10,
+    virtualBatchSize=20,
+    batchSize=1,
+    learningRate=1e-3,
+    traindir=None,
+    add_gaussian_noise_std=0.0,
+    enable_poisson_noise=False,
+    upperclip_quantile=0.995,
+    lowerclip_quantile=0.0,
+):
     hostname = socket.gethostname()
     exp_directory = get_workdir(traindir, False)
     print('Experiment directroy: ', exp_directory)
@@ -94,6 +98,8 @@ def train(datadir,
         'exp_directory': exp_directory,
         'enable_poisson_noise': enable_poisson_noise,
         'add_gaussian_noise_std': add_gaussian_noise_std,
+        'upperclip_quantile': upperclip_quantile,
+        'lowerclip_quantile': lowerclip_quantile,
     }
     fname1 = fname2 = None
 
@@ -122,6 +128,13 @@ def train(datadir,
         noisy_data = noisy_data1 + noisy_data2
     else:
         noisy_data = load_data(os.path.join(datadir, fname))
+
+    # upperclip
+    max_val = np.quantile(noisy_data, upperclip_quantile)
+    noisy_data[noisy_data > max_val] = max_val
+    # lowerclip
+    min_val = np.quantile(noisy_data, lowerclip_quantile)
+    noisy_data[noisy_data < min_val] = min_val
 
     assert enable_poisson_noise is False or add_gaussian_noise_std == 0.0, 'Cannot enable both poisson and gaussian noise'
     if enable_poisson_noise:
@@ -170,20 +183,27 @@ if __name__ == '__main__':
     parser.add_argument('--traindir', type=str, default=os.path.expanduser('~/training/N2V/'))
     parser.add_argument('--add_gaussian_noise_std', type=float, default=0.0)
     parser.add_argument('--enable_poisson_noise', action='store_true')
+    parser.add_argument('--upperclip_quantile', type=float, default=0.995)
+    parser.add_argument('--lowerclip_quantile', type=float, default=0.0)
 
     args = parser.parse_args()
 
-    train(args.datadir, (args.fname, args.fname2),
-          unet_depth=args.unet_depth,
-          val_fraction=args.val_fraction,
-          numOfEpochs=args.numOfEpochs,
-          stepsPerEpoch=args.stepsPerEpoch,
-          virtualBatchSize=args.virtualBatchSize,
-          batchSize=args.batchSize,
-          learningRate=args.learningRate,
-          traindir=args.traindir,
-          add_gaussian_noise_std=args.add_gaussian_noise_std,
-          enable_poisson_noise=args.enable_poisson_noise)
+    train(
+        args.datadir,
+        (args.fname, args.fname2),
+        unet_depth=args.unet_depth,
+        val_fraction=args.val_fraction,
+        numOfEpochs=args.numOfEpochs,
+        stepsPerEpoch=args.stepsPerEpoch,
+        virtualBatchSize=args.virtualBatchSize,
+        batchSize=args.batchSize,
+        learningRate=args.learningRate,
+        traindir=args.traindir,
+        add_gaussian_noise_std=args.add_gaussian_noise_std,
+        enable_poisson_noise=args.enable_poisson_noise,
+        upperclip_quantile=args.upperclip_quantile,
+        lowerclip_quantile=args.lowerclip_quantile,
+    )
 
     # plt.xlabel('epoch')
     # plt.ylabel('loss')
