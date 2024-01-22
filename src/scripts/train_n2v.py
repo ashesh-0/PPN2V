@@ -143,7 +143,9 @@ def train(
         print('Adding gaussian noise with std: ', add_gaussian_noise_std)
         noisy_data = noisy_data + np.random.normal(0, add_gaussian_noise_std, noisy_data.shape)
         # we make sure that the noisy data is positive and the entire noise distribution is above zero
-        noisy_data = noisy_data - noisy_data.min()
+        # noisy_data = noisy_data - noisy_data.min()
+        # however, this is no longer needed since I know the cause of the issue with histogram noise model.
+        # `ra` was not being correctly set.
 
     nameModel = get_modelname(datadir, fname)
 
