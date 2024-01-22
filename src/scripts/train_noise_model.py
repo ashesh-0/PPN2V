@@ -161,9 +161,12 @@ def train_noise_model(
 
     min_obs = np.percentile(norm_obs, 0.0)
     max_obs = np.percentile(norm_obs, 100)
-
+    min_sig = np.percentile(norm_signal, 0.0)
+    max_sig = np.percentile(norm_signal, 100)
+    min_val = min(min_obs, min_sig)
+    max_val = max(max_obs, max_sig)
     dataName = f"{os.path.basename(slashstrip(data_dir))}-{data_fileName.split('-')[0]}"
-    histogram = src.ppn2v.pn2v.histNoiseModel.createHistogram(hist_bins, min_obs, max_obs, norm_obs, norm_signal)
+    histogram = src.ppn2v.pn2v.histNoiseModel.createHistogram(hist_bins, min_val, max_val, norm_obs, norm_signal)
     hist_path = os.path.join(exp_directory, get_hist_model_name(dataName, normalized_version, hist_bins) + '.npy')
     np.save(hist_path, histogram)
     print('Histogram model saved at', hist_path)
