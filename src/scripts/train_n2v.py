@@ -186,8 +186,8 @@ if __name__ == '__main__':
     parser.add_argument('--traindir', type=str, default=os.path.expanduser('~/training/N2V/'))
     parser.add_argument('--add_gaussian_noise_std', type=float, default=0.0)
     parser.add_argument('--enable_poisson_noise', action='store_true')
-    parser.add_argument('--upperclip_quantile', type=float, default=0.995)
-    parser.add_argument('--lowerclip_quantile', type=float, default=0.0)
+    parser.add_argument('--upperclip_quantile', type=float, default=0.999)
+    parser.add_argument('--lowerclip_quantile', type=float, default=0.001)
 
     args = parser.parse_args()
 
