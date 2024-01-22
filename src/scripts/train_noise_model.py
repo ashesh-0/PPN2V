@@ -213,8 +213,8 @@ if __name__ == '__main__':
     parser.add_argument('--n_coeff', type=int, default=4)
     parser.add_argument('--hist_bins', type=int, default=64)
     parser.add_argument('--unnormalized_version', action='store_true')
-    parser.add_argument('--upperclip_quantile', type=float, default=0.995)
-    parser.add_argument('--lowerclip_quantile', type=float, default=0.0)
+    parser.add_argument('--upperclip_quantile', type=float, default=0.999)
+    parser.add_argument('--lowerclip_quantile', type=float, default=0.001)
 
     args = parser.parse_args()
     train_noise_model(
