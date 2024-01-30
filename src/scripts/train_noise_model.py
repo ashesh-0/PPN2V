@@ -106,6 +106,7 @@ def train_noise_model(
         'lowerclip_quantile': lowerclip_quantile,
         'val_fraction': val_fraction,
         'exp_directory': exp_directory,
+        'n2v_modelpath': n2v_modelpath,
     }
 
     n2v_config = load_config(os.path.dirname(n2v_modelpath))
