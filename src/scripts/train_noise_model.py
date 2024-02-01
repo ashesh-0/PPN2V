@@ -108,11 +108,14 @@ def train_noise_model(
         'exp_directory': exp_directory,
         'n2v_modelpath': n2v_modelpath,
     }
+    if n2v_config.get('add_gaussian_noise_std', 0.0) > 0.0:
+        config['add_gaussian_noise_std'] = n2v_config['add_gaussian_noise_std']
 
     n2v_config = load_config(os.path.dirname(n2v_modelpath))
     if n2v_config is not None:
-        assert n2v_config[
-            'fname'] == data_fileName, f'N2V should have been trained on the same data!!, Found {n2v_config["fname"]} for N2V and {data_fileName} for noise model'
+        n2v_fnames = set({n2v_config['fname'], n2v_config.get('fname2', '')})
+        fnames = set(data_fileName)
+        assert n2v_fnames == fnames, f'N2V should have been trained on the same data!!, Found {n2v_fnames} for N2V and {fnames} for noise model'
 
     add_git_info(config)
     dump_config(config, exp_directory)
@@ -123,8 +126,15 @@ def train_noise_model(
                project="N2V",
                config=config)
 
-    fpath = os.path.join(data_dir, data_fileName)
-    noisy_data = load_data(fpath)
+    noisy_data = 0
+    assert isinstance(data_fileName, tuple)
+    for fName in data_fileName:
+        if fName == '':
+            continue
+        fpath = os.path.join(data_dir, fName)
+        print('Loading data from', fpath)
+        noisy_data += load_data(fpath)
+
     # I think clipping should be done on original data. After that we can add noise. Otherwise
     # it is incorrect in multiple ways:
     # 1. N2V does exactly that: first clips the data and then adds noise.
@@ -213,6 +223,8 @@ if __name__ == '__main__':
     parser.add_argument('--datadir', type=str, default='/group/jug/ashesh/data/ventura_gigascience')
     parser.add_argument('--datafname', type=str, default='mito-60x-noise2-lowsnr.tif')
     parser.add_argument('--n2v_modelpath', type=str)
+    parser.add_argument('--datafname2', type=str, default='')
+
     parser.add_argument('--noise_model_directory', type=str, default='/home/ashesh.ashesh/training/noise_model/')
     parser.add_argument('--gmm_min_sigma', type=float, default=0.125)
     parser.add_argument('--n_gaussian', type=int, default=6)
@@ -227,7 +239,7 @@ if __name__ == '__main__':
         args.n2v_modelpath,
         args.noise_model_directory,
         args.datadir,
-        args.datafname,
+        (args.datafname, args.datafname2),
         normalized_version=(not args.unnormalized_version),
         n_gaussian=args.n_gaussian,
         n_coeff=args.n_coeff,
