@@ -125,6 +125,19 @@ def train_noise_model(
 
     fpath = os.path.join(data_dir, data_fileName)
     noisy_data = load_data(fpath)
+    # I think clipping should be done on original data. After that we can add noise. Otherwise
+    # it is incorrect in multiple ways:
+    # 1. N2V does exactly that: first clips the data and then adds noise.
+    # 2. If after adding noise, we clip the data, then for some portions we will see not noisy but saturated data which is incorrect.
+    # 3. Now, in the current data loader, we are clipping the data before adding noise. So, we should do the same here.
+
+    # upperclip data
+    max_val = np.quantile(noisy_data, upperclip_quantile)
+    noisy_data[noisy_data > max_val] = max_val
+
+    # lowerclip
+    min_val = np.quantile(noisy_data, lowerclip_quantile)
+    noisy_data[noisy_data < min_val] = min_val
 
     if n2v_config.get('enable_poisson_noise', False):
         print('Enabling poisson noise for N2V model')
@@ -135,14 +148,6 @@ def train_noise_model(
 
     val_N = int(noisy_data.shape[0] * val_fraction)
     noisy_data = noisy_data[val_N:].copy()
-
-    # upperclip data
-    max_val = np.quantile(noisy_data, upperclip_quantile)
-    noisy_data[noisy_data > max_val] = max_val
-
-    # lowerclip
-    min_val = np.quantile(noisy_data, lowerclip_quantile)
-    noisy_data[noisy_data < min_val] = min_val
 
     net = get_trained_n2v_model(n2v_modelpath)
     signal = evaluate_n2v(net, noisy_data)
