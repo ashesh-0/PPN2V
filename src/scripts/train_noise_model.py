@@ -87,6 +87,7 @@ def train_noise_model(
     val_fraction=0.2,
     upperclip_quantile=0.995,
     lowerclip_quantile=0.005,
+    input_is_sum=False,
 ):
 
     hostname = socket.gethostname()
@@ -107,6 +108,7 @@ def train_noise_model(
         'val_fraction': val_fraction,
         'exp_directory': exp_directory,
         'n2v_modelpath': n2v_modelpath,
+        'input_is_sum': input_is_sum,
     }
     n2v_config = load_config(os.path.dirname(n2v_modelpath))
 
@@ -129,11 +131,17 @@ def train_noise_model(
 
     noisy_data = 0
     assert isinstance(data_fileName, tuple)
+    count = 0
     for fName in data_fileName:
         if fName == '':
             continue
         fpath = os.path.join(data_dir, fName)
         noisy_data += load_data(fpath)
+        count += 1
+
+    # Here, we are averaging the data. Because, this is what we will do when working with usplit.
+    if input_is_sum is False:
+        noisy_data = noisy_data // count
 
     # I think clipping should be done on original data. After that we can add noise. Otherwise
     # it is incorrect in multiple ways:
@@ -224,7 +232,7 @@ if __name__ == '__main__':
     parser.add_argument('--datafname', type=str, default='mito-60x-noise2-lowsnr.tif')
     parser.add_argument('--n2v_modelpath', type=str)
     parser.add_argument('--datafname2', type=str, default='')
-
+    parser.add_argument('--input_is_sum', action='store_true')
     parser.add_argument('--noise_model_directory', type=str, default='/home/ashesh.ashesh/training/noise_model/')
     parser.add_argument('--gmm_min_sigma', type=float, default=0.125)
     parser.add_argument('--n_gaussian', type=int, default=6)
@@ -248,4 +256,5 @@ if __name__ == '__main__':
         hist_bins=args.hist_bins,
         upperclip_quantile=args.upperclip_quantile,
         lowerclip_quantile=args.lowerclip_quantile,
+        input_is_sum=args.input_is_sum,
     )
