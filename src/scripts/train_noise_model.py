@@ -108,10 +108,11 @@ def train_noise_model(
         'exp_directory': exp_directory,
         'n2v_modelpath': n2v_modelpath,
     }
+    n2v_config = load_config(os.path.dirname(n2v_modelpath))
+
     if n2v_config.get('add_gaussian_noise_std', 0.0) > 0.0:
         config['add_gaussian_noise_std'] = n2v_config['add_gaussian_noise_std']
 
-    n2v_config = load_config(os.path.dirname(n2v_modelpath))
     if n2v_config is not None:
         n2v_fnames = set({n2v_config['fname'], n2v_config.get('fname2', '')})
         fnames = set(data_fileName)
