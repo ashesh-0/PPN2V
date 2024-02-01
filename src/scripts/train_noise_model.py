@@ -133,7 +133,6 @@ def train_noise_model(
         if fName == '':
             continue
         fpath = os.path.join(data_dir, fName)
-        print('Loading data from', fpath)
         noisy_data += load_data(fpath)
 
     # I think clipping should be done on original data. After that we can add noise. Otherwise
