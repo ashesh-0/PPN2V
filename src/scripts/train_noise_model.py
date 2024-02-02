@@ -144,10 +144,17 @@ def train_noise_model(
         noisy_data = noisy_data // count
 
     # I think clipping should be done on original data. After that we can add noise. Otherwise
-    # it is incorrect in multiple ways:
-    # 1. N2V does exactly that: first clips the data and then adds noise.
-    # 2. If after adding noise, we clip the data, then for some portions we will see not noisy but saturated data which is incorrect.
-    # 3. Now, in the current data loader, we are clipping the data before adding noise. So, we should do the same here.
+    # it is incorrect in multiple ways => now, I realized that this is incorrect. We should clip the data after adding noise.:
+    # 1. N2V does exactly that: first clips the data and then adds noise. => n2v should also clip the data after adding noise.
+    # 2. If after adding noise, we clip the data, then for some portions we will see not noisy but saturated data which is incorrect. this is correct.
+    # 3. Now, in the current data loader, we are clipping the data before adding noise. => we were doing wrong.
+
+    if n2v_config.get('enable_poisson_noise', False):
+        print('Enabling poisson noise for N2V model')
+        noisy_data = np.random.poisson(noisy_data)
+    elif n2v_config.get('add_gaussian_noise_std', 0.0) > 0.0:
+        print('Adding gaussian noise for N2V model', n2v_config['add_gaussian_noise_std'])
+        noisy_data = noisy_data + np.random.normal(0, n2v_config['add_gaussian_noise_std'], noisy_data.shape)
 
     # upperclip data
     max_val = np.quantile(noisy_data, upperclip_quantile)
@@ -156,13 +163,6 @@ def train_noise_model(
     # lowerclip
     min_val = np.quantile(noisy_data, lowerclip_quantile)
     noisy_data[noisy_data < min_val] = min_val
-
-    if n2v_config.get('enable_poisson_noise', False):
-        print('Enabling poisson noise for N2V model')
-        noisy_data = np.random.poisson(noisy_data)
-    elif n2v_config.get('add_gaussian_noise_std', 0.0) > 0.0:
-        print('Adding gaussian noise for N2V model', n2v_config['add_gaussian_noise_std'])
-        noisy_data = noisy_data + np.random.normal(0, n2v_config['add_gaussian_noise_std'], noisy_data.shape)
 
     val_N = int(noisy_data.shape[0] * val_fraction)
     noisy_data = noisy_data[val_N:].copy()

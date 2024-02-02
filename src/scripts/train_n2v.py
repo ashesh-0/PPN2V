@@ -129,13 +129,6 @@ def train(
     else:
         noisy_data = load_data(os.path.join(datadir, fname))
 
-    # upperclip
-    max_val = np.quantile(noisy_data, upperclip_quantile)
-    noisy_data[noisy_data > max_val] = max_val
-    # lowerclip
-    min_val = np.quantile(noisy_data, lowerclip_quantile)
-    noisy_data[noisy_data < min_val] = min_val
-
     assert enable_poisson_noise is False or add_gaussian_noise_std == 0.0, 'Cannot enable both poisson and gaussian noise'
     if enable_poisson_noise:
         noisy_data = np.random.poisson(noisy_data)
@@ -146,6 +139,13 @@ def train(
         # noisy_data = noisy_data - noisy_data.min()
         # however, this is no longer needed since I know the cause of the issue with histogram noise model.
         # `ra` was not being correctly set.
+
+    # upperclip
+    max_val = np.quantile(noisy_data, upperclip_quantile)
+    noisy_data[noisy_data > max_val] = max_val
+    # lowerclip
+    min_val = np.quantile(noisy_data, lowerclip_quantile)
+    noisy_data[noisy_data < min_val] = min_val
 
     nameModel = get_modelname(datadir, fname)
 
