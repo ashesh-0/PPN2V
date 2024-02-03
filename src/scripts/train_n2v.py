@@ -79,6 +79,7 @@ def train(
     enable_poisson_noise=False,
     upperclip_quantile=0.995,
     lowerclip_quantile=0.0,
+    train_dataset_fraction=1.0,
 ):
     hostname = socket.gethostname()
     exp_directory = get_workdir(traindir, False)
@@ -153,6 +154,11 @@ def train(
     val_count = int(val_fraction * len(noisy_data))
     my_train_data = noisy_data[:-1 * val_count].copy()
     my_val_data = noisy_data[-1 * val_count:].copy()
+    if train_dataset_fraction < 1.0:
+        original_shape = my_train_data.shape
+        my_train_data = my_train_data[:int(len(my_train_data) * train_dataset_fraction)]
+        print(f'Using only a fraction: {train_dataset_fraction} of the training data', original_shape, 'New shape',
+              my_train_data.shape)
 
     # Start training.
     trainHist, valHist = training.trainNetwork(net=net,
@@ -188,25 +194,24 @@ if __name__ == '__main__':
     parser.add_argument('--enable_poisson_noise', action='store_true')
     parser.add_argument('--upperclip_quantile', type=float, default=0.999)
     parser.add_argument('--lowerclip_quantile', type=float, default=0.001)
+    parser.add_argument('--train_dataset_fraction', type=float, default=1.0)
 
     args = parser.parse_args()
 
-    train(
-        args.datadir,
-        (args.fname, args.fname2),
-        unet_depth=args.unet_depth,
-        val_fraction=args.val_fraction,
-        numOfEpochs=args.numOfEpochs,
-        stepsPerEpoch=args.stepsPerEpoch,
-        virtualBatchSize=args.virtualBatchSize,
-        batchSize=args.batchSize,
-        learningRate=args.learningRate,
-        traindir=args.traindir,
-        add_gaussian_noise_std=args.add_gaussian_noise_std,
-        enable_poisson_noise=args.enable_poisson_noise,
-        upperclip_quantile=args.upperclip_quantile,
-        lowerclip_quantile=args.lowerclip_quantile,
-    )
+    train(args.datadir, (args.fname, args.fname2),
+          unet_depth=args.unet_depth,
+          val_fraction=args.val_fraction,
+          numOfEpochs=args.numOfEpochs,
+          stepsPerEpoch=args.stepsPerEpoch,
+          virtualBatchSize=args.virtualBatchSize,
+          batchSize=args.batchSize,
+          learningRate=args.learningRate,
+          traindir=args.traindir,
+          add_gaussian_noise_std=args.add_gaussian_noise_std,
+          enable_poisson_noise=args.enable_poisson_noise,
+          upperclip_quantile=args.upperclip_quantile,
+          lowerclip_quantile=args.lowerclip_quantile,
+          train_dataset_fraction=args.train_dataset_fraction)
 
     # plt.xlabel('epoch')
     # plt.ylabel('loss')
