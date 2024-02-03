@@ -88,6 +88,7 @@ def train_noise_model(
     upperclip_quantile=0.995,
     lowerclip_quantile=0.005,
     input_is_sum=False,
+    train_dataset_fraction=1.0,
 ):
 
     hostname = socket.gethostname()
@@ -166,6 +167,11 @@ def train_noise_model(
 
     val_N = int(noisy_data.shape[0] * val_fraction)
     noisy_data = noisy_data[val_N:].copy()
+    if train_dataset_fraction < 1.0:
+        original_shape = noisy_data.shape
+        noisy_data = noisy_data[:int(len(noisy_data) * train_dataset_fraction)]
+        print(f'Using only a fraction: {train_dataset_fraction} of the training data', original_shape, 'New shape',
+              noisy_data.shape)
 
     net = get_trained_n2v_model(n2v_modelpath)
     signal = evaluate_n2v(net, noisy_data)
@@ -241,20 +247,19 @@ if __name__ == '__main__':
     parser.add_argument('--unnormalized_version', action='store_true')
     parser.add_argument('--upperclip_quantile', type=float, default=0.999)
     parser.add_argument('--lowerclip_quantile', type=float, default=0.001)
+    parser.add_argument('--train_dataset_fraction', type=float, default=1.0)
 
     args = parser.parse_args()
-    train_noise_model(
-        args.n2v_modelpath,
-        args.noise_model_directory,
-        args.datadir,
-        (args.datafname, args.datafname2),
-        normalized_version=(not args.unnormalized_version),
-        n_gaussian=args.n_gaussian,
-        n_coeff=args.n_coeff,
-        gmm_min_sigma=args.gmm_min_sigma,
-        hard_upper_threshold=None,
-        hist_bins=args.hist_bins,
-        upperclip_quantile=args.upperclip_quantile,
-        lowerclip_quantile=args.lowerclip_quantile,
-        input_is_sum=args.input_is_sum,
-    )
+    train_noise_model(args.n2v_modelpath,
+                      args.noise_model_directory,
+                      args.datadir, (args.datafname, args.datafname2),
+                      normalized_version=(not args.unnormalized_version),
+                      n_gaussian=args.n_gaussian,
+                      n_coeff=args.n_coeff,
+                      gmm_min_sigma=args.gmm_min_sigma,
+                      hard_upper_threshold=None,
+                      hist_bins=args.hist_bins,
+                      upperclip_quantile=args.upperclip_quantile,
+                      lowerclip_quantile=args.lowerclip_quantile,
+                      input_is_sum=args.input_is_sum,
+                      train_dataset_fraction=args.train_dataset_fraction)

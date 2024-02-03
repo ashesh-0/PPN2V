@@ -152,8 +152,8 @@ def train(
 
     # Split training and validation data.
     val_count = int(val_fraction * len(noisy_data))
-    my_train_data = noisy_data[:-1 * val_count].copy()
-    my_val_data = noisy_data[-1 * val_count:].copy()
+    my_train_data = noisy_data[val_count:].copy()
+    my_val_data = noisy_data[:val_count].copy()
     if train_dataset_fraction < 1.0:
         original_shape = my_train_data.shape
         my_train_data = my_train_data[:int(len(my_train_data) * train_dataset_fraction)]
@@ -183,7 +183,7 @@ if __name__ == '__main__':
     parser.add_argument('--fname', type=str, default='mito-60x-noise2-lowsnr.tif')
     parser.add_argument('--fname2', type=str, default='')
     parser.add_argument('--unet_depth', type=int, default=3)
-    parser.add_argument('--val_fraction', type=float, default=0.05)
+    parser.add_argument('--val_fraction', type=float, default=0.2)
     parser.add_argument('--numOfEpochs', type=int, default=200)
     parser.add_argument('--stepsPerEpoch', type=int, default=10)
     parser.add_argument('--virtualBatchSize', type=int, default=200)
