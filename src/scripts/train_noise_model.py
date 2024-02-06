@@ -90,6 +90,8 @@ def train_noise_model(
     input_is_sum=False,
     train_dataset_fraction=1.0,
     train_with_gt_as_clean_data=False,
+    add_gaussian_noise_std=-1,
+    enable_poisson_noise=False,
 ):
 
     hostname = socket.gethostname()
@@ -114,14 +116,18 @@ def train_noise_model(
         'train_with_gt_as_clean_data': train_with_gt_as_clean_data,
     }
     n2v_config = load_config(os.path.dirname(n2v_modelpath))
-
-    if n2v_config.get('add_gaussian_noise_std', 0.0) > 0.0:
-        config['add_gaussian_noise_std'] = n2v_config['add_gaussian_noise_std']
+    if add_gaussian_noise_std > 0:
+        config['add_gaussian_noise_std'] = add_gaussian_noise_std
 
     if n2v_config is not None:
+        if n2v_config.get('add_gaussian_noise_std', 0.0) > 0.0:
+            config['add_gaussian_noise_std'] = n2v_config['add_gaussian_noise_std']
+            add_gaussian_noise_std = n2v_config['add_gaussian_noise_std']
         n2v_fnames = set({n2v_config['fname'], n2v_config.get('fname2', '')})
         fnames = set(data_fileName)
         assert n2v_fnames == fnames, f'N2V should have been trained on the same data!!, Found {n2v_fnames} for N2V and {fnames} for noise model'
+        if n2v_config.get('enable_poisson_noise', False):
+            enable_poisson_noise = n2v_config['enable_poisson_noise']
 
     add_git_info(config)
     dump_config(config, exp_directory)
@@ -152,12 +158,13 @@ def train_noise_model(
     # 1. N2V does exactly that: first clips the data and then adds noise. => n2v should also clip the data after adding noise.
     # 2. If after adding noise, we clip the data, then for some portions we will see not noisy but saturated data which is incorrect. this is correct.
     # 3. Now, in the current data loader, we are clipping the data before adding noise. => we were doing wrong.
-    if n2v_config.get('enable_poisson_noise', False):
+    if enable_poisson_noise:
         print('Enabling poisson noise for N2V model')
         noisy_data = np.random.poisson(noisy_data)
-    elif n2v_config.get('add_gaussian_noise_std', 0.0) > 0.0:
-        print('Adding gaussian noise for N2V model', n2v_config['add_gaussian_noise_std'])
-        noisy_data = noisy_data + np.random.normal(0, n2v_config['add_gaussian_noise_std'], noisy_data.shape)
+
+    elif add_gaussian_noise_std > 0.0:
+        print('Adding gaussian noise for N2V model', add_gaussian_noise_std)
+        noisy_data = noisy_data + np.random.normal(0, add_gaussian_noise_std, noisy_data.shape)
 
     # upperclip data
     max_val = np.quantile(noisy_data, upperclip_quantile)
@@ -216,7 +223,6 @@ def train_noise_model(
     # print(min_signal, max_signal)
     # min_signal = np.percentile(norm_signal, 0.0)
     # max_signal = np.percentile(norm_signal, 100)
-    print(min_signal, max_signal)
     # import pdb;pdb.set_trace()
     gaussianMixtureNoiseModel = src.ppn2v.pn2v.gaussianMixtureNoiseModel.GaussianMixtureNoiseModel(
         min_signal=min_signal,
