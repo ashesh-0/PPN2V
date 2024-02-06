@@ -89,6 +89,7 @@ def train_noise_model(
     lowerclip_quantile=0.005,
     input_is_sum=False,
     train_dataset_fraction=1.0,
+    train_with_gt_as_clean_data=False,
 ):
 
     hostname = socket.gethostname()
@@ -110,6 +111,7 @@ def train_noise_model(
         'exp_directory': exp_directory,
         'n2v_modelpath': n2v_modelpath,
         'input_is_sum': input_is_sum,
+        'train_with_gt_as_clean_data': train_with_gt_as_clean_data,
     }
     n2v_config = load_config(os.path.dirname(n2v_modelpath))
 
@@ -144,12 +146,12 @@ def train_noise_model(
     if input_is_sum is False:
         noisy_data = noisy_data // count
 
+    raw_data = noisy_data
     # I think clipping should be done on original data. After that we can add noise. Otherwise
     # it is incorrect in multiple ways => now, I realized that this is incorrect. We should clip the data after adding noise.:
     # 1. N2V does exactly that: first clips the data and then adds noise. => n2v should also clip the data after adding noise.
     # 2. If after adding noise, we clip the data, then for some portions we will see not noisy but saturated data which is incorrect. this is correct.
     # 3. Now, in the current data loader, we are clipping the data before adding noise. => we were doing wrong.
-
     if n2v_config.get('enable_poisson_noise', False):
         print('Enabling poisson noise for N2V model')
         noisy_data = np.random.poisson(noisy_data)
@@ -167,14 +169,21 @@ def train_noise_model(
 
     val_N = int(noisy_data.shape[0] * val_fraction)
     noisy_data = noisy_data[val_N:].copy()
+    raw_data = raw_data[val_N:].copy()
+
     if train_dataset_fraction < 1.0:
         original_shape = noisy_data.shape
         noisy_data = noisy_data[:int(len(noisy_data) * train_dataset_fraction)]
         print(f'Using only a fraction: {train_dataset_fraction} of the training data', original_shape, 'New shape',
               noisy_data.shape)
 
-    net = get_trained_n2v_model(n2v_modelpath)
-    signal = evaluate_n2v(net, noisy_data)
+    if train_with_gt_as_clean_data:
+        signal = raw_data
+        assert upperclip_quantile == 1.0, 'upperclip_quantile should be 1.0 when using ground truth as clean data'
+        assert lowerclip_quantile == 0.0, 'lowerclip_quantile should be 0.0 when using ground truth as clean data'
+    else:
+        net = get_trained_n2v_model(n2v_modelpath)
+        signal = evaluate_n2v(net, noisy_data)
 
     if hard_upper_threshold is not None:
         noisy_data[noisy_data > hard_upper_threshold] = hard_upper_threshold
@@ -248,18 +257,23 @@ if __name__ == '__main__':
     parser.add_argument('--upperclip_quantile', type=float, default=0.999)
     parser.add_argument('--lowerclip_quantile', type=float, default=0.001)
     parser.add_argument('--train_dataset_fraction', type=float, default=1.0)
+    parser.add_argument('--train_with_gt_as_clean_data', action='store_true')
 
     args = parser.parse_args()
-    train_noise_model(args.n2v_modelpath,
-                      args.noise_model_directory,
-                      args.datadir, (args.datafname, args.datafname2),
-                      normalized_version=(not args.unnormalized_version),
-                      n_gaussian=args.n_gaussian,
-                      n_coeff=args.n_coeff,
-                      gmm_min_sigma=args.gmm_min_sigma,
-                      hard_upper_threshold=None,
-                      hist_bins=args.hist_bins,
-                      upperclip_quantile=args.upperclip_quantile,
-                      lowerclip_quantile=args.lowerclip_quantile,
-                      input_is_sum=args.input_is_sum,
-                      train_dataset_fraction=args.train_dataset_fraction)
+    train_noise_model(
+        args.n2v_modelpath,
+        args.noise_model_directory,
+        args.datadir,
+        (args.datafname, args.datafname2),
+        normalized_version=(not args.unnormalized_version),
+        n_gaussian=args.n_gaussian,
+        n_coeff=args.n_coeff,
+        gmm_min_sigma=args.gmm_min_sigma,
+        hard_upper_threshold=None,
+        hist_bins=args.hist_bins,
+        upperclip_quantile=args.upperclip_quantile,
+        lowerclip_quantile=args.lowerclip_quantile,
+        input_is_sum=args.input_is_sum,
+        train_dataset_fraction=args.train_dataset_fraction,
+        train_with_gt_as_clean_data=args.train_with_gt_as_clean_data,
+    )
