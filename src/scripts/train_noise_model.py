@@ -263,6 +263,7 @@ if __name__ == '__main__':
     parser.add_argument('--upperclip_quantile', type=float, default=0.999)
     parser.add_argument('--lowerclip_quantile', type=float, default=0.001)
     parser.add_argument('--train_dataset_fraction', type=float, default=1.0)
+    parser.add_argument('--add_gaussian_noise_std', type=float, default=-1)
     parser.add_argument('--train_with_gt_as_clean_data', action='store_true')
 
     args = parser.parse_args()
@@ -282,4 +283,5 @@ if __name__ == '__main__':
         input_is_sum=args.input_is_sum,
         train_dataset_fraction=args.train_dataset_fraction,
         train_with_gt_as_clean_data=args.train_with_gt_as_clean_data,
+        add_gaussian_noise_std=args.add_gaussian_noise_std,
     )
