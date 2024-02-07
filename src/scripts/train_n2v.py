@@ -80,6 +80,7 @@ def train(
     upperclip_quantile=0.995,
     lowerclip_quantile=0.0,
     train_dataset_fraction=1.0,
+    patchSize=128,
 ):
     hostname = socket.gethostname()
     exp_directory = get_workdir(traindir, False)
@@ -101,6 +102,7 @@ def train(
         'add_gaussian_noise_std': add_gaussian_noise_std,
         'upperclip_quantile': upperclip_quantile,
         'lowerclip_quantile': lowerclip_quantile,
+        'patchSize': patchSize,
     }
     fname1 = fname2 = None
 
@@ -129,6 +131,8 @@ def train(
         noisy_data = noisy_data1 + noisy_data2
     else:
         noisy_data = load_data(os.path.join(datadir, fname))
+
+    assert noisy_data.shape[-1] >= patchSize, 'Patch size is larger than the image size'
 
     assert enable_poisson_noise is False or add_gaussian_noise_std == 0.0, 'Cannot enable both poisson and gaussian noise'
     if enable_poisson_noise:
@@ -172,6 +176,7 @@ def train(
                                                stepsPerEpoch=stepsPerEpoch,
                                                virtualBatchSize=virtualBatchSize,
                                                batchSize=batchSize,
+                                               patchSize=patchSize,
                                                learningRate=learningRate)
     return trainHist, valHist
 
@@ -195,6 +200,7 @@ if __name__ == '__main__':
     parser.add_argument('--upperclip_quantile', type=float, default=0.999)
     parser.add_argument('--lowerclip_quantile', type=float, default=0.001)
     parser.add_argument('--train_dataset_fraction', type=float, default=1.0)
+    parser.add_argument('--patchSize', type=int, default=128)
 
     args = parser.parse_args()
 
@@ -211,7 +217,8 @@ if __name__ == '__main__':
           enable_poisson_noise=args.enable_poisson_noise,
           upperclip_quantile=args.upperclip_quantile,
           lowerclip_quantile=args.lowerclip_quantile,
-          train_dataset_fraction=args.train_dataset_fraction)
+          train_dataset_fraction=args.train_dataset_fraction,
+          patchSize=args.patchSize)
 
     # plt.xlabel('epoch')
     # plt.ylabel('loss')

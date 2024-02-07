@@ -283,7 +283,6 @@ def trainNetwork(net,
                  batchSize=4,
                  patchSize=128,
                  learningRate=0.0001,
-                 numMaskedPixels=100 * 100 / 32.0,
                  virtualBatchSize=20,
                  valSize=20,
                  augment=True,
@@ -335,13 +334,13 @@ def trainNetwork(net,
     valHist: numpy array
         A numpy array containing the avg. validation loss after each epoch.
     '''
+    numMaskedPixels = patchSize * patchSize / 32.0
 
     # Calculate mean and std of data.
     # Everything that is processed by the net will be normalized and denormalized using these numbers.
     combined = np.concatenate((trainData, valData))
     net.mean = np.mean(combined)
     net.std = np.std(combined)
-
     net.to(device)
 
     optimizer = optim.Adam(net.parameters(), lr=learningRate)
