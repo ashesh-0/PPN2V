@@ -21,8 +21,17 @@ import src.ppn2v.pn2v.prediction
 from src.ppn2v.experiment_saving import add_git_info, dump_config, get_workdir, load_config
 from src.ppn2v.pn2v import *
 from src.ppn2v.pn2v.utils import *
+from src.scripts.read_mrc import read_mrc
 from src.scripts.train_n2v import get_bestmodelname, load_data
 from tifffile import imread
+
+
+def get_mrc_data(fpath):
+    # HXWXN
+    _, data = read_mrc(fpath)
+    data = data[None]
+    data = np.swapaxes(data, 0, 3)
+    return data[..., 0]
 
 
 def slashstrip(path):
@@ -91,7 +100,7 @@ def train_noise_model(
     train_dataset_fraction=1.0,
     train_with_gt_as_clean_data=False,
     add_gaussian_noise_std=-1,
-    enable_poisson_noise=False,
+    poisson_noise_factor=-1,
 ):
 
     hostname = socket.gethostname()
@@ -115,7 +124,7 @@ def train_noise_model(
         'input_is_sum': input_is_sum,
         'train_with_gt_as_clean_data': train_with_gt_as_clean_data,
     }
-    n2v_config = load_config(os.path.dirname(n2v_modelpath))
+    n2v_config = load_config(os.path.dirname(n2v_modelpath)) if n2v_modelpath is not None else None
     if add_gaussian_noise_std > 0:
         config['add_gaussian_noise_std'] = add_gaussian_noise_std
 
@@ -126,8 +135,8 @@ def train_noise_model(
         n2v_fnames = set({n2v_config['fname'], n2v_config.get('fname2', '')})
         fnames = set(data_fileName)
         assert n2v_fnames == fnames, f'N2V should have been trained on the same data!!, Found {n2v_fnames} for N2V and {fnames} for noise model'
-        if n2v_config.get('enable_poisson_noise', False):
-            enable_poisson_noise = n2v_config['enable_poisson_noise']
+        if n2v_config.get('poisson_noise_factor', -1):
+            poisson_noise_factor = n2v_config['poisson_noise_factor']
 
     add_git_info(config)
     dump_config(config, exp_directory)
@@ -145,7 +154,11 @@ def train_noise_model(
         if fName == '':
             continue
         fpath = os.path.join(data_dir, fName)
-        noisy_data += load_data(fpath)
+        if fpath.endswith('.mrc'):
+            data = get_mrc_data(fpath)
+            noisy_data += data
+        else:
+            noisy_data += load_data(fpath)
         count += 1
 
     # Here, we are averaging the data. Because, this is what we will do when working with usplit.
@@ -158,9 +171,10 @@ def train_noise_model(
     # 1. N2V does exactly that: first clips the data and then adds noise. => n2v should also clip the data after adding noise.
     # 2. If after adding noise, we clip the data, then for some portions we will see not noisy but saturated data which is incorrect. this is correct.
     # 3. Now, in the current data loader, we are clipping the data before adding noise. => we were doing wrong.
-    if enable_poisson_noise:
+    if poisson_noise_factor > 1:
         print('Enabling poisson noise for N2V model')
-        noisy_data = np.random.poisson(noisy_data)
+        # The higher this factor, the more the poisson noise.
+        noisy_data = np.random.poisson(noisy_data / poisson_noise_factor) * poisson_noise_factor
 
     elif add_gaussian_noise_std > 0.0:
         print('Adding gaussian noise for N2V model', add_gaussian_noise_std)

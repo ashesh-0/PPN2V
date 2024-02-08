@@ -76,7 +76,7 @@ def train(
     learningRate=1e-3,
     traindir=None,
     add_gaussian_noise_std=0.0,
-    enable_poisson_noise=False,
+    poisson_noise_factor=-1,
     upperclip_quantile=0.995,
     lowerclip_quantile=0.0,
     train_dataset_fraction=1.0,
@@ -98,7 +98,7 @@ def train(
         'batchSize': batchSize,
         'learningRate': learningRate,
         'exp_directory': exp_directory,
-        'enable_poisson_noise': enable_poisson_noise,
+        'poisson_noise_factor': poisson_noise_factor,
         'add_gaussian_noise_std': add_gaussian_noise_std,
         'upperclip_quantile': upperclip_quantile,
         'lowerclip_quantile': lowerclip_quantile,
@@ -134,9 +134,10 @@ def train(
 
     assert noisy_data.shape[-1] >= patchSize, 'Patch size is larger than the image size'
 
-    assert enable_poisson_noise is False or add_gaussian_noise_std == 0.0, 'Cannot enable both poisson and gaussian noise'
-    if enable_poisson_noise:
-        noisy_data = np.random.poisson(noisy_data)
+    assert poisson_noise_factor == -1 or add_gaussian_noise_std == 0.0, 'Cannot enable both poisson and gaussian noise'
+    if poisson_noise_factor:
+        noisy_data = np.random.poisson(noisy_data / poisson_noise_factor) * poisson_noise_factor
+
     elif add_gaussian_noise_std > 0.0:
         print('Adding gaussian noise with std: ', add_gaussian_noise_std)
         noisy_data = noisy_data + np.random.normal(0, add_gaussian_noise_std, noisy_data.shape)
@@ -196,7 +197,7 @@ if __name__ == '__main__':
     parser.add_argument('--learningRate', type=float, default=1e-3)
     parser.add_argument('--traindir', type=str, default=os.path.expanduser('~/training/N2V/'))
     parser.add_argument('--add_gaussian_noise_std', type=float, default=0.0)
-    parser.add_argument('--enable_poisson_noise', action='store_true')
+    parser.add_argument('--poisson_noise_factor', action='store_true')
     parser.add_argument('--upperclip_quantile', type=float, default=1.0)
     parser.add_argument('--lowerclip_quantile', type=float, default=0.0)
     parser.add_argument('--train_dataset_fraction', type=float, default=1.0)
@@ -214,7 +215,7 @@ if __name__ == '__main__':
           learningRate=args.learningRate,
           traindir=args.traindir,
           add_gaussian_noise_std=args.add_gaussian_noise_std,
-          enable_poisson_noise=args.enable_poisson_noise,
+          poisson_noise_factor=args.poisson_noise_factor,
           upperclip_quantile=args.upperclip_quantile,
           lowerclip_quantile=args.lowerclip_quantile,
           train_dataset_fraction=args.train_dataset_fraction,
