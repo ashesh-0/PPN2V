@@ -135,8 +135,7 @@ def train_noise_model(
         n2v_fnames = set({n2v_config['fname'], n2v_config.get('fname2', '')})
         fnames = set(data_fileName)
         assert n2v_fnames == fnames, f'N2V should have been trained on the same data!!, Found {n2v_fnames} for N2V and {fnames} for noise model'
-        if n2v_config.get('poisson_noise_factor', -1):
-            poisson_noise_factor = n2v_config['poisson_noise_factor']
+        poisson_noise_factor = n2v_config.get('poisson_noise_factor', -1)
 
     add_git_info(config)
     dump_config(config, exp_directory)
@@ -171,7 +170,7 @@ def train_noise_model(
     # 1. N2V does exactly that: first clips the data and then adds noise. => n2v should also clip the data after adding noise.
     # 2. If after adding noise, we clip the data, then for some portions we will see not noisy but saturated data which is incorrect. this is correct.
     # 3. Now, in the current data loader, we are clipping the data before adding noise. => we were doing wrong.
-    if poisson_noise_factor > 1:
+    if poisson_noise_factor > 0:
         print('Enabling poisson noise for N2V model')
         # The higher this factor, the more the poisson noise.
         noisy_data = np.random.poisson(noisy_data / poisson_noise_factor) * poisson_noise_factor
