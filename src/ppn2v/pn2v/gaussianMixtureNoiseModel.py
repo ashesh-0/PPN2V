@@ -75,7 +75,7 @@ class GaussianMixtureNoiseModel:
             self.min_sigma = np.asscalar(params['min_sigma'])
             self.n_gaussian = self.weight.shape[0] // 3
             self.n_coeff = self.weight.shape[1]
-        self.tol = torch.Tensor([1e-4]).to(self.device)
+        self.tol = torch.Tensor([1e-10]).to(self.device)
 
     def polynomialRegressor(self, weightParams, signals):
         """Combines `weightParams` and signal `signals` to regress for the gaussian parameter values.
@@ -119,6 +119,7 @@ class GaussianMixtureNoiseModel:
         tmp = tmp / (2.0 * std_ * std_)
         tmp = torch.exp(tmp)
         tmp = tmp / torch.sqrt((2.0 * np.pi) * std_ * std_)
+        # print(tmp.min().item(), tmp.mean().item(), tmp.max().item(), tmp.shape)
         return tmp
 
     def likelihood(self, observations, signals):
