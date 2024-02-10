@@ -171,11 +171,11 @@ def train_noise_model(
     # 2. If after adding noise, we clip the data, then for some portions we will see not noisy but saturated data which is incorrect. this is correct.
     # 3. Now, in the current data loader, we are clipping the data before adding noise. => we were doing wrong.
     if poisson_noise_factor > 0:
-        print('Enabling poisson noise for N2V model')
+        print('Enabling poisson noise for N2V model with factor', poisson_noise_factor)
         # The higher this factor, the more the poisson noise.
         noisy_data = np.random.poisson(noisy_data / poisson_noise_factor) * poisson_noise_factor
 
-    elif add_gaussian_noise_std > 0.0:
+    if add_gaussian_noise_std > 0.0:
         print('Adding gaussian noise for N2V model', add_gaussian_noise_std)
         noisy_data = noisy_data + np.random.normal(0, add_gaussian_noise_std, noisy_data.shape)
 
@@ -278,6 +278,7 @@ if __name__ == '__main__':
     parser.add_argument('--train_dataset_fraction', type=float, default=1.0)
     parser.add_argument('--add_gaussian_noise_std', type=float, default=-1)
     parser.add_argument('--train_with_gt_as_clean_data', action='store_true')
+    parser.add_argument('--poisson_noise_factor', type=float, default=-1)
 
     args = parser.parse_args()
     train_noise_model(
@@ -297,4 +298,5 @@ if __name__ == '__main__':
         train_dataset_fraction=args.train_dataset_fraction,
         train_with_gt_as_clean_data=args.train_with_gt_as_clean_data,
         add_gaussian_noise_std=args.add_gaussian_noise_std,
+        poisson_noise_factor=args.poisson_noise_factor,
     )
