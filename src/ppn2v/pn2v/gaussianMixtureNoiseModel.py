@@ -8,6 +8,8 @@ import numpy as np
 
 from .utils import fastShuffle
 
+MAXVAL = 1000000
+
 
 class GaussianMixtureNoiseModel:
     """The GaussianMixtureNoiseModel class describes a noise model which is parameterized as a mixture of gaussians.
@@ -117,7 +119,7 @@ class GaussianMixtureNoiseModel:
 
         tmp = -((x - m_)**2)
         tmp = tmp / (2.0 * std_ * std_)
-        tmp = torch.exp(tmp)
+        tmp = torch.nan_to_num(torch.exp(tmp), MAXVAL)
         tmp = tmp / torch.sqrt((2.0 * np.pi) * std_ * std_)
         # print(tmp.min().item(), tmp.mean().item(), tmp.max().item(), tmp.shape)
         return tmp
@@ -166,10 +168,13 @@ class GaussianMixtureNoiseModel:
         for num in range(kernels):
             mu.append(self.polynomialRegressor(self.weight[num, :], signals))
 
-            sigmaTemp = self.polynomialRegressor(torch.exp(self.weight[kernels + num, :]), signals)
+            sigmaTemp = self.polynomialRegressor(
+                torch.nan_to_num(torch.exp(self.weight[kernels + num, :]), posinf=MAXVAL), signals)
             sigmaTemp = torch.clamp(sigmaTemp, min=self.min_sigma)
             sigma.append(torch.sqrt(sigmaTemp))
-            alpha.append(torch.exp(self.polynomialRegressor(self.weight[2 * kernels + num, :], signals) + self.tol))
+            alpha.append(
+                torch.nan_to_num(
+                    torch.exp(self.polynomialRegressor(self.weight[2 * kernels + num, :], signals) + self.tol), MAXVAL))
 
         sum_alpha = 0
         for al in range(kernels):
@@ -272,6 +277,7 @@ class GaussianMixtureNoiseModel:
         counter = 0
         optimizer = torch.optim.Adam([self.weight], lr=learning_rate)
         loss_arr = []
+
         for t in range(n_epochs):
             if (counter + 1) * batchSize >= sig_obs_pairs.shape[0]:
                 counter = 0
@@ -282,7 +288,9 @@ class GaussianMixtureNoiseModel:
             signals = batch_vectors[:, 0].astype(np.float32)
             observations = torch.from_numpy(observations.astype(np.float32)).float().to(self.device)
             signals = torch.from_numpy(signals).float().to(self.device)
+
             p = self.likelihood(observations, signals)
+
             jointLoss = torch.mean(-torch.log(p))
             loss_arr.append(jointLoss.item())
             if t % 100 == 0:
