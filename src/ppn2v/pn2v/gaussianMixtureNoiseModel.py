@@ -8,7 +8,8 @@ import numpy as np
 
 from .utils import fastShuffle
 
-MAXVAL = 1000000
+MAX_VAR_W = 20
+MAX_ALPHA_W = 10
 
 
 class GaussianMixtureNoiseModel:
@@ -78,6 +79,7 @@ class GaussianMixtureNoiseModel:
             self.n_gaussian = self.weight.shape[0] // 3
             self.n_coeff = self.weight.shape[1]
         self.tol = torch.Tensor([1e-10]).to(self.device)
+        # self.maxval = 0
 
     def polynomialRegressor(self, weightParams, signals):
         """Combines `weightParams` and signal `signals` to regress for the gaussian parameter values.
@@ -119,7 +121,7 @@ class GaussianMixtureNoiseModel:
 
         tmp = -((x - m_)**2)
         tmp = tmp / (2.0 * std_ * std_)
-        tmp = torch.nan_to_num(torch.exp(tmp), MAXVAL)
+        tmp = torch.exp(tmp)
         tmp = tmp / torch.sqrt((2.0 * np.pi) * std_ * std_)
         # print(tmp.min().item(), tmp.mean().item(), tmp.max().item(), tmp.shape)
         return tmp
@@ -167,14 +169,17 @@ class GaussianMixtureNoiseModel:
         kernels = self.weight.shape[0] // 3
         for num in range(kernels):
             mu.append(self.polynomialRegressor(self.weight[num, :], signals))
-
-            sigmaTemp = self.polynomialRegressor(
-                torch.nan_to_num(torch.exp(self.weight[kernels + num, :]), posinf=MAXVAL), signals)
+            expval = torch.exp(torch.clamp(self.weight[kernels + num, :], max=MAX_VAR_W))
+            # self.maxval = max(self.maxval, expval.max().item())
+            sigmaTemp = self.polynomialRegressor(expval, signals)
             sigmaTemp = torch.clamp(sigmaTemp, min=self.min_sigma)
             sigma.append(torch.sqrt(sigmaTemp))
-            alpha.append(
-                torch.nan_to_num(
-                    torch.exp(self.polynomialRegressor(self.weight[2 * kernels + num, :], signals) + self.tol), MAXVAL))
+
+            expval = torch.exp(
+                torch.clamp(
+                    self.polynomialRegressor(self.weight[2 * kernels + num, :], signals) + self.tol, MAX_ALPHA_W))
+            # self.maxval = max(self.maxval, expval.max().item())
+            alpha.append(expval)
 
         sum_alpha = 0
         for al in range(kernels):
