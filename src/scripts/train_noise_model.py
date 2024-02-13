@@ -101,8 +101,10 @@ def train_noise_model(
     train_with_gt_as_clean_data=False,
     add_gaussian_noise_std=-1,
     poisson_noise_factor=-1,
+    gmm_tolerance=None,
 ):
-
+    import pdb
+    pdb.set_trace()
     hostname = socket.gethostname()
 
     exp_directory = get_workdir(noise_model_rootdirectory, False)
@@ -123,6 +125,7 @@ def train_noise_model(
         'n2v_modelpath': n2v_modelpath,
         'input_is_sum': input_is_sum,
         'train_with_gt_as_clean_data': train_with_gt_as_clean_data,
+        'gmm_tolerance': gmm_tolerance,
     }
     n2v_config = load_config(os.path.dirname(n2v_modelpath)) if n2v_modelpath is not None else None
     if add_gaussian_noise_std > 0:
@@ -247,6 +250,8 @@ def train_noise_model(
         device=device,
         min_sigma=gmm_min_sigma)
 
+    if gmm_tolerance is not None:
+        gaussianMixtureNoiseModel.set_tolerance(gmm_tolerance)
     gaussianMixtureNoiseModel.train(norm_signal,
                                     norm_obs,
                                     batchSize=250000,
@@ -279,6 +284,7 @@ if __name__ == '__main__':
     parser.add_argument('--add_gaussian_noise_std', type=float, default=-1)
     parser.add_argument('--train_with_gt_as_clean_data', action='store_true')
     parser.add_argument('--poisson_noise_factor', type=float, default=-1)
+    parser.add_argument('--gmm_tolerance', type=float, default=None)
 
     args = parser.parse_args()
     train_noise_model(
@@ -299,4 +305,5 @@ if __name__ == '__main__':
         train_with_gt_as_clean_data=args.train_with_gt_as_clean_data,
         add_gaussian_noise_std=args.add_gaussian_noise_std,
         poisson_noise_factor=args.poisson_noise_factor,
+        gmm_tolerance=args.gmm_tolerance,
     )

@@ -78,7 +78,15 @@ class GaussianMixtureNoiseModel:
             self.min_sigma = np.asscalar(params['min_sigma'])
             self.n_gaussian = self.weight.shape[0] // 3
             self.n_coeff = self.weight.shape[1]
-        self.tol = torch.Tensor([1e-10]).to(self.device)
+
+        self.tol = None
+        self.set_tolerance(1e-10)
+
+    def set_tolerance(self, tol):
+        """Sets the tolerance for the likelihood evaluation.
+        """
+        print("Setting tolerance to: ", tol)
+        self.tol = torch.Tensor([tol]).to(self.device)
         # self.maxval = 0
 
     def polynomialRegressor(self, weightParams, signals):
