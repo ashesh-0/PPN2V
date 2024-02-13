@@ -249,8 +249,8 @@ def train_noise_model(
 
     gaussianMixtureNoiseModel.train(norm_signal,
                                     norm_obs,
-                                    batchSize=25000,
-                                    n_epochs=2000,
+                                    batchSize=250000,
+                                    n_epochs=4000,
                                     learning_rate=0.1,
                                     name=get_gmm_model_name(dataName, normalized_version, n_gaussian, n_coeff,
                                                             lowerclip_quantile, upperclip_quantile, gmm_min_sigma,
