@@ -103,8 +103,6 @@ def train_noise_model(
     poisson_noise_factor=-1,
     gmm_tolerance=None,
 ):
-    import pdb
-    pdb.set_trace()
     hostname = socket.gethostname()
 
     exp_directory = get_workdir(noise_model_rootdirectory, False)
