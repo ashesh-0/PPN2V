@@ -88,6 +88,7 @@ def train_noise_model(
     data_dir,
     data_fileName,
     normalized_version=True,
+    channel_idx=None,
     n_gaussian=6,
     n_coeff=4,
     gmm_min_sigma=0.125,
@@ -124,6 +125,7 @@ def train_noise_model(
         'input_is_sum': input_is_sum,
         'train_with_gt_as_clean_data': train_with_gt_as_clean_data,
         'gmm_tolerance': gmm_tolerance,
+        'channel_idx': channel_idx,
     }
     n2v_config = load_config(os.path.dirname(n2v_modelpath)) if n2v_modelpath is not None else None
     if add_gaussian_noise_std > 0:
@@ -161,6 +163,9 @@ def train_noise_model(
             noisy_data += load_data(fpath)
         count += 1
 
+    if channel_idx is not None:
+        print('Using only channel', channel_idx, 'from the data', noisy_data.shape)
+        noisy_data = noisy_data[..., channel_idx]
     # Here, we are averaging the data. Because, this is what we will do when working with usplit.
     if input_is_sum is False:
         noisy_data = noisy_data // count
@@ -267,6 +272,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--datadir', type=str, default='/group/jug/ashesh/data/ventura_gigascience')
     parser.add_argument('--datafname', type=str, default='mito-60x-noise2-lowsnr.tif')
+    parser.add_argument('--channel_idx', type=int, default=None)
     parser.add_argument('--n2v_modelpath', type=str)
     parser.add_argument('--datafname2', type=str, default='')
     parser.add_argument('--input_is_sum', action='store_true')
@@ -290,6 +296,7 @@ if __name__ == '__main__':
         args.noise_model_directory,
         args.datadir,
         (args.datafname, args.datafname2),
+        channel_idx=args.channel_idx,
         normalized_version=(not args.unnormalized_version),
         n_gaussian=args.n_gaussian,
         n_coeff=args.n_coeff,
