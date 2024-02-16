@@ -87,8 +87,8 @@ def train_noise_model(
     noise_model_rootdirectory,
     data_dir,
     data_fileName,
-    normalized_version=True,
     channel_idx=None,
+    normalized_version=True,
     n_gaussian=6,
     n_coeff=4,
     gmm_min_sigma=0.125,
@@ -152,20 +152,21 @@ def train_noise_model(
     noisy_data = 0
     assert isinstance(data_fileName, tuple)
     count = 0
-    for fName in data_fileName:
+    for fName, c_idx in zip(data_fileName, channel_idx):
         if fName == '':
             continue
         fpath = os.path.join(data_dir, fName)
         if fpath.endswith('.mrc'):
             data = get_mrc_data(fpath)
-            noisy_data += data
         else:
-            noisy_data += load_data(fpath)
+            data = load_data(fpath)
+        if c_idx is not None:
+            print('Using only channel', c_idx, 'from the data', data.shape)
+            data = data[..., c_idx]
+
+        noisy_data += data
         count += 1
 
-    if channel_idx is not None:
-        print('Using only channel', channel_idx, 'from the data', noisy_data.shape)
-        noisy_data = noisy_data[..., channel_idx]
     # Here, we are averaging the data. Because, this is what we will do when working with usplit.
     if input_is_sum is False:
         noisy_data = noisy_data // count
@@ -275,6 +276,7 @@ if __name__ == '__main__':
     parser.add_argument('--channel_idx', type=int, default=None)
     parser.add_argument('--n2v_modelpath', type=str)
     parser.add_argument('--datafname2', type=str, default='')
+    parser.add_argument('--channel_idx2', type=int, default=None)
     parser.add_argument('--input_is_sum', action='store_true')
     parser.add_argument('--noise_model_directory', type=str, default='/home/ashesh.ashesh/training/noise_model/')
     parser.add_argument('--gmm_min_sigma', type=float, default=0.125)
@@ -296,7 +298,7 @@ if __name__ == '__main__':
         args.noise_model_directory,
         args.datadir,
         (args.datafname, args.datafname2),
-        channel_idx=args.channel_idx,
+        channel_idx=(args.channel_idx, args.channel_idx2),
         normalized_version=(not args.unnormalized_version),
         n_gaussian=args.n_gaussian,
         n_coeff=args.n_coeff,
