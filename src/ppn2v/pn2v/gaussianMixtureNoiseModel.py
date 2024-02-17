@@ -308,11 +308,13 @@ class GaussianMixtureNoiseModel:
 
             jointLoss = torch.mean(-torch.log(p))
             loss_arr.append(jointLoss.item())
+            if self.weight.isnan().any() or self.weight.isinf().any():
+                print("NaN or Inf detected in the weights. Aborting training at epoch: ", t)
+                break
+
             if t % 100 == 0:
                 print(t, np.mean(loss_arr))
                 loss_arr = []
-
-            if (t % (int(n_epochs * 0.5)) == 0):
                 trained_weight = self.weight.cpu().detach().numpy()
                 min_signal = self.min_signal.cpu().detach().numpy()
                 max_signal = self.max_signal.cpu().detach().numpy()
