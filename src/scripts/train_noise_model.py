@@ -149,7 +149,7 @@ def train_noise_model(
                project="N2V",
                config=config)
 
-    noisy_data = 0
+    noisy_data = None
     assert isinstance(data_fileName, tuple)
     count = 0
     for fName, c_idx in zip(data_fileName, channel_idx):
@@ -164,7 +164,14 @@ def train_noise_model(
             print('Using only channel', c_idx, 'from the data', data.shape)
             data = data[..., c_idx]
 
-        noisy_data += data
+        if noisy_data is None:
+            noisy_data = data
+        elif noisy_data is not None and data.shape == noisy_data.shape:
+            noisy_data += data
+        elif noisy_data is not None and data.shape != noisy_data.shape:
+            min_N = min(data.shape[0], noisy_data.shape[0])
+            noisy_data = noisy_data[:min_N] + data[:min_N]
+
         count += 1
 
     # Here, we are averaging the data. Because, this is what we will do when working with usplit.
@@ -231,7 +238,11 @@ def train_noise_model(
     max_sig = np.percentile(norm_signal, 100)
     min_val = min(min_obs, min_sig)
     max_val = max(max_obs, max_sig)
-    dataName = f"{os.path.basename(slashstrip(data_dir))}-{'_'.join([fname.split('-')[0] for fname in data_fileName])}"
+
+    def clean(fname):
+        return fname.replace('/', '_').replace('.mrc', '').replace('.tif', '')
+
+    dataName = f"{os.path.basename(slashstrip(data_dir))}-{'_'.join([clean(fname).split('-')[0] for fname in data_fileName])}"
     histogram = src.ppn2v.pn2v.histNoiseModel.createHistogram(hist_bins, min_val, max_val, norm_obs, norm_signal)
     hist_path = os.path.join(exp_directory, get_hist_model_name(dataName, normalized_version, hist_bins) + '.npy')
     np.save(hist_path, histogram)
@@ -243,7 +254,6 @@ def train_noise_model(
     # print(min_signal, max_signal)
     # min_signal = np.percentile(norm_signal, 0.0)
     # max_signal = np.percentile(norm_signal, 100)
-    # import pdb;pdb.set_trace()
     gaussianMixtureNoiseModel = src.ppn2v.pn2v.gaussianMixtureNoiseModel.GaussianMixtureNoiseModel(
         min_signal=min_signal,
         max_signal=max_signal,
