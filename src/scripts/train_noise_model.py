@@ -290,7 +290,7 @@ if __name__ == '__main__':
     parser.add_argument('--add_gaussian_noise_std', type=float, default=-1)
     parser.add_argument('--train_with_gt_as_clean_data', action='store_true')
     parser.add_argument('--poisson_noise_factor', type=float, default=-1)
-    parser.add_argument('--gmm_tolerance', type=float, default=None)
+    parser.add_argument('--gmm_tolerance', type=float, default=1e-6)
 
     args = parser.parse_args()
     train_noise_model(
