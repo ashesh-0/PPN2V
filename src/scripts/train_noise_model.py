@@ -103,6 +103,7 @@ def train_noise_model(
     add_gaussian_noise_std=-1,
     poisson_noise_factor=-1,
     gmm_tolerance=None,
+    train_pure_noise_model=False,
 ):
     hostname = socket.gethostname()
 
@@ -126,6 +127,7 @@ def train_noise_model(
         'train_with_gt_as_clean_data': train_with_gt_as_clean_data,
         'gmm_tolerance': gmm_tolerance,
         'channel_idx': channel_idx,
+        'train_pure_noise_model': train_pure_noise_model,
     }
     n2v_config = load_config(os.path.dirname(n2v_modelpath)) if n2v_modelpath is not None else None
     if add_gaussian_noise_std > 0:
@@ -155,6 +157,7 @@ def train_noise_model(
     for fName, c_idx in zip(data_fileName, channel_idx):
         if fName == '':
             continue
+        assert train_pure_noise_model is False, 'train_pure_noise_model does not need any data.'
         fpath = os.path.join(data_dir, fName)
         if fpath.endswith('.mrc'):
             data = get_mrc_data(fpath)
@@ -174,50 +177,68 @@ def train_noise_model(
 
         count += 1
 
-    # Here, we are averaging the data. Because, this is what we will do when working with usplit.
-    if input_is_sum is False:
-        noisy_data = noisy_data // count
+    if train_pure_noise_model:
+        print('Training pure noise model')
+        assert count == 0, 'train_pure_noise_model should not have any data'
+        assert add_gaussian_noise_std > 0, 'train_pure_noise_model should have gaussian noise'
+        signal = np.random.uniform(0, 65535, size=(50, 128, 128)).astype(np.uint32)
+        noisy_data = np.tile(signal[:, None], (1, 100, 1, 1))
+        noisy_data = noisy_data.reshape(-1, 128, 128)
 
-    raw_data = noisy_data
-    # I think clipping should be done on original data. After that we can add noise. Otherwise
-    # it is incorrect in multiple ways => now, I realized that this is incorrect. We should clip the data after adding noise.:
-    # 1. N2V does exactly that: first clips the data and then adds noise. => n2v should also clip the data after adding noise.
-    # 2. If after adding noise, we clip the data, then for some portions we will see not noisy but saturated data which is incorrect. this is correct.
-    # 3. Now, in the current data loader, we are clipping the data before adding noise. => we were doing wrong.
-    if poisson_noise_factor > 0:
-        print('Enabling poisson noise for N2V model with factor', poisson_noise_factor)
-        # The higher this factor, the more the poisson noise.
-        noisy_data = np.random.poisson(noisy_data / poisson_noise_factor) * poisson_noise_factor
+        if poisson_noise_factor > 0:
+            print('Enabling poisson noise with factor', poisson_noise_factor)
+            # The higher this factor, the more the poisson noise.
+            noisy_data = np.random.poisson(noisy_data / poisson_noise_factor) * poisson_noise_factor
 
-    if add_gaussian_noise_std > 0.0:
-        print('Adding gaussian noise for N2V model', add_gaussian_noise_std)
-        noisy_data = noisy_data + np.random.normal(0, add_gaussian_noise_std, noisy_data.shape)
+        if add_gaussian_noise_std > 0.0:
+            print('Adding gaussian noise', add_gaussian_noise_std)
+            noisy_data = noisy_data + np.random.normal(0, add_gaussian_noise_std, noisy_data.shape)
 
-    # upperclip data
-    max_val = np.quantile(noisy_data, upperclip_quantile)
-    noisy_data[noisy_data > max_val] = max_val
-
-    # lowerclip
-    min_val = np.quantile(noisy_data, lowerclip_quantile)
-    noisy_data[noisy_data < min_val] = min_val
-
-    val_N = int(noisy_data.shape[0] * val_fraction)
-    noisy_data = noisy_data[val_N:].copy()
-    raw_data = raw_data[val_N:].copy()
-
-    if train_dataset_fraction < 1.0:
-        original_shape = noisy_data.shape
-        noisy_data = noisy_data[:int(len(noisy_data) * train_dataset_fraction)]
-        print(f'Using only a fraction: {train_dataset_fraction} of the training data', original_shape, 'New shape',
-              noisy_data.shape)
-
-    if train_with_gt_as_clean_data:
-        signal = raw_data
-        assert upperclip_quantile == 1.0, 'upperclip_quantile should be 1.0 when using ground truth as clean data'
-        assert lowerclip_quantile == 0.0, 'lowerclip_quantile should be 0.0 when using ground truth as clean data'
     else:
-        net = get_trained_n2v_model(n2v_modelpath)
-        signal = evaluate_n2v(net, noisy_data)
+        # Here, we are averaging the data. Because, this is what we will do when working with usplit.
+        if input_is_sum is False:
+            noisy_data = noisy_data // count
+
+        raw_data = noisy_data
+        # I think clipping should be done on original data. After that we can add noise. Otherwise
+        # it is incorrect in multiple ways => now, I realized that this is incorrect. We should clip the data after adding noise.:
+        # 1. N2V does exactly that: first clips the data and then adds noise. => n2v should also clip the data after adding noise.
+        # 2. If after adding noise, we clip the data, then for some portions we will see not noisy but saturated data which is incorrect. this is correct.
+        # 3. Now, in the current data loader, we are clipping the data before adding noise. => we were doing wrong.
+        if poisson_noise_factor > 0:
+            print('Enabling poisson noise for N2V model with factor', poisson_noise_factor)
+            # The higher this factor, the more the poisson noise.
+            noisy_data = np.random.poisson(noisy_data / poisson_noise_factor) * poisson_noise_factor
+
+        if add_gaussian_noise_std > 0.0:
+            print('Adding gaussian noise for N2V model', add_gaussian_noise_std)
+            noisy_data = noisy_data + np.random.normal(0, add_gaussian_noise_std, noisy_data.shape)
+
+        # upperclip data
+        max_val = np.quantile(noisy_data, upperclip_quantile)
+        noisy_data[noisy_data > max_val] = max_val
+
+        # lowerclip
+        min_val = np.quantile(noisy_data, lowerclip_quantile)
+        noisy_data[noisy_data < min_val] = min_val
+
+        val_N = int(noisy_data.shape[0] * val_fraction)
+        noisy_data = noisy_data[val_N:].copy()
+        raw_data = raw_data[val_N:].copy()
+
+        if train_dataset_fraction < 1.0:
+            original_shape = noisy_data.shape
+            noisy_data = noisy_data[:int(len(noisy_data) * train_dataset_fraction)]
+            print(f'Using only a fraction: {train_dataset_fraction} of the training data', original_shape, 'New shape',
+                  noisy_data.shape)
+
+        if train_with_gt_as_clean_data:
+            signal = raw_data
+            assert upperclip_quantile == 1.0, 'upperclip_quantile should be 1.0 when using ground truth as clean data'
+            assert lowerclip_quantile == 0.0, 'lowerclip_quantile should be 0.0 when using ground truth as clean data'
+        else:
+            net = get_trained_n2v_model(n2v_modelpath)
+            signal = evaluate_n2v(net, noisy_data)
 
     if hard_upper_threshold is not None:
         noisy_data[noisy_data > hard_upper_threshold] = hard_upper_threshold
@@ -301,6 +322,7 @@ if __name__ == '__main__':
     parser.add_argument('--train_with_gt_as_clean_data', action='store_true')
     parser.add_argument('--poisson_noise_factor', type=float, default=-1)
     parser.add_argument('--gmm_tolerance', type=float, default=1e-6)
+    parser.add_argument('--train_pure_noise_model', action='store_true')
 
     args = parser.parse_args()
     train_noise_model(
@@ -323,4 +345,5 @@ if __name__ == '__main__':
         add_gaussian_noise_std=args.add_gaussian_noise_std,
         poisson_noise_factor=args.poisson_noise_factor,
         gmm_tolerance=args.gmm_tolerance,
+        train_pure_noise_model=args.train_pure_noise_model,
     )
