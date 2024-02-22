@@ -128,6 +128,7 @@ def train_noise_model(
         'gmm_tolerance': gmm_tolerance,
         'channel_idx': channel_idx,
         'train_pure_noise_model': train_pure_noise_model,
+        'poisson_noise_factor': poisson_noise_factor,
     }
     n2v_config = load_config(os.path.dirname(n2v_modelpath)) if n2v_modelpath is not None else None
     if add_gaussian_noise_std > 0:
