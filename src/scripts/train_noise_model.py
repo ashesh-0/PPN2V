@@ -45,7 +45,7 @@ dtype = torch.float
 device = torch.device("cuda:0")
 
 
-def evaluate_n2v(net, data):
+def evaluate_n2v(net, data, patchsize=96, overlap=80):
     results = []
     meanRes = []
     resultImgs = []
@@ -56,7 +56,12 @@ def evaluate_n2v(net, data):
         im = dataTest[index]
         # We are using tiling to fit the image into memory
         # If you get an error try a smaller patch size (ps)
-        means = src.ppn2v.pn2v.prediction.tiledPredict(im, net, ps=256, overlap=224, device=device, noiseModel=None)
+        means = src.ppn2v.pn2v.prediction.tiledPredict(im,
+                                                       net,
+                                                       ps=patchsize,
+                                                       overlap=overlap,
+                                                       device=device,
+                                                       noiseModel=None)
         resultImgs.append(means)
 
     return np.array(resultImgs)
