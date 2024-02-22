@@ -80,7 +80,7 @@ def train(
     upperclip_quantile=0.995,
     lowerclip_quantile=0.0,
     train_dataset_fraction=1.0,
-    patchSize=128,
+    patchSize=100,
 ):
     hostname = socket.gethostname()
     exp_directory = get_workdir(traindir, False)
@@ -136,6 +136,7 @@ def train(
 
     assert poisson_noise_factor == -1 or add_gaussian_noise_std == 0.0, 'Cannot enable both poisson and gaussian noise'
     if poisson_noise_factor:
+        print('Adding poisson noise with factor: ', poisson_noise_factor)
         noisy_data = np.random.poisson(noisy_data / poisson_noise_factor) * poisson_noise_factor
 
     elif add_gaussian_noise_std > 0.0:
@@ -201,7 +202,7 @@ if __name__ == '__main__':
     parser.add_argument('--upperclip_quantile', type=float, default=1.0)
     parser.add_argument('--lowerclip_quantile', type=float, default=0.0)
     parser.add_argument('--train_dataset_fraction', type=float, default=1.0)
-    parser.add_argument('--patchSize', type=int, default=1024)
+    parser.add_argument('--patchSize', type=int, default=96)
 
     args = parser.parse_args()
 
