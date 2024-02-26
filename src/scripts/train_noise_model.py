@@ -87,6 +87,16 @@ def get_trained_n2v_model(n2v_modelpath):
     return net
 
 
+def get_frame_count(data_shape, datausage_fraction=1.0):
+    """
+    In case of partial data usage, we need to know how many frames to use.
+    """
+    framepixelcount = np.prod(data_shape[1:3])
+    pixelcount = int(data_shape[0] * framepixelcount * datausage_fraction)
+    frame_count = int(np.ceil(pixelcount / framepixelcount))
+    return frame_count
+
+
 def train_noise_model(
     n2v_modelpath,
     noise_model_rootdirectory,
@@ -107,9 +117,14 @@ def train_noise_model(
     train_with_gt_as_clean_data=False,
     add_gaussian_noise_std=-1,
     poisson_noise_factor=-1,
+    data_usage_fraction=1.0,
     gmm_tolerance=None,
     train_pure_noise_model=False,
 ):
+    """
+    Args:
+        data_usage_fraction: Fraction of the data to use. This is useful when we want to use only a fraction of the data.
+    """
     hostname = socket.gethostname()
 
     exp_directory = get_workdir(noise_model_rootdirectory, False)
@@ -233,6 +248,12 @@ def train_noise_model(
         val_N = int(noisy_data.shape[0] * val_fraction)
         noisy_data = noisy_data[val_N:].copy()
         raw_data = raw_data[val_N:].copy()
+        if data_usage_fraction < 1.0:
+            frame_count = get_frame_count(noisy_data.shape, data_usage_fraction)
+            noisy_data = noisy_data[:frame_count].copy()
+            raw_data = raw_data[:frame_count].copy()
+            print(f'Using only a fraction: {data_usage_fraction} of the training data', frame_count, 'New shape',
+                  noisy_data.shape)
 
         if train_dataset_fraction < 1.0:
             original_shape = noisy_data.shape
@@ -331,6 +352,7 @@ if __name__ == '__main__':
     parser.add_argument('--poisson_noise_factor', type=float, default=-1)
     parser.add_argument('--gmm_tolerance', type=float, default=1e-6)
     parser.add_argument('--train_pure_noise_model', action='store_true')
+    parser.add_argument('--data_usage_fraction', type=float, default=1.0)
 
     args = parser.parse_args()
     train_noise_model(
@@ -354,4 +376,5 @@ if __name__ == '__main__':
         poisson_noise_factor=args.poisson_noise_factor,
         gmm_tolerance=args.gmm_tolerance,
         train_pure_noise_model=args.train_pure_noise_model,
+        data_usage_fraction=args.data_usage_fraction,
     )
