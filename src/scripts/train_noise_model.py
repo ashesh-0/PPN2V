@@ -179,6 +179,7 @@ def train_noise_model(
     count = 0
     for fName, c_idx in zip(data_fileName, channel_idx):
         if fName == '':
+            assert c_idx is None, 'filename needs to be provided if channel index is provided.'
             continue
         assert train_pure_noise_model is False, 'train_pure_noise_model does not need any data.'
         fpath = os.path.join(data_dir, fName)
