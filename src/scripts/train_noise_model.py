@@ -97,6 +97,10 @@ def get_frame_count(data_shape, datausage_fraction=1.0):
     return frame_count
 
 
+def cleanup_name(fname):
+    return fname.replace('/', '_').replace('.mrc', '').replace('.tif', '')
+
+
 def train_noise_model(
     n2v_modelpath,
     noise_model_rootdirectory,
@@ -245,6 +249,15 @@ def train_noise_model(
         # lowerclip
         min_val = np.quantile(noisy_data, lowerclip_quantile)
         noisy_data[noisy_data < min_val] = min_val
+        # save
+        # dataName = f"{os.path.basename(slashstrip(data_dir))}-{'_'.join([cleanup_name(fname).split('-')[0] for fname in data_fileName])}"
+        # if add_gaussian_noise_std > 0:
+        #     dataName += f'Gaus{int(add_gaussian_noise_std)}'
+        # if poisson_noise_factor > 0:
+        #     dataName += f'Pois{int(poisson_noise_factor)}'
+        # np.save(os.path.join(exp_directory, f'noisy_{dataName}.npy'), noisy_data)
+        # print('Noisy data saved at', os.path.join(exp_directory, f'noisy_{dataName}.npy'))
+        # import pdb; pdb.set_trace()
 
         val_N = int(noisy_data.shape[0] * val_fraction)
         noisy_data = noisy_data[val_N:].copy()
@@ -290,10 +303,7 @@ def train_noise_model(
     min_val = min(min_obs, min_sig)
     max_val = max(max_obs, max_sig)
 
-    def clean(fname):
-        return fname.replace('/', '_').replace('.mrc', '').replace('.tif', '')
-
-    dataName = f"{os.path.basename(slashstrip(data_dir))}-{'_'.join([clean(fname).split('-')[0] for fname in data_fileName])}"
+    dataName = f"{os.path.basename(slashstrip(data_dir))}-{'_'.join([cleanup_name(fname).split('-')[0] for fname in data_fileName])}"
     histogram = src.ppn2v.pn2v.histNoiseModel.createHistogram(hist_bins, min_val, max_val, norm_obs, norm_signal)
     hist_path = os.path.join(exp_directory, get_hist_model_name(dataName, normalized_version, hist_bins) + '.npy')
     np.save(hist_path, histogram)
