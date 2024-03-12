@@ -145,18 +145,27 @@ def train(
 
     assert noisy_data.shape[-1] >= patchSize, 'Patch size is larger than the image size'
 
-    assert poisson_noise_factor == -1 or add_gaussian_noise_std == 0.0, 'Cannot enable both poisson and gaussian noise'
-    if poisson_noise_factor:
-        print('Adding poisson noise with factor: ', poisson_noise_factor)
+    # assert poisson_noise_factor == -1 or add_gaussian_noise_std == 0.0, 'Cannot enable both poisson and gaussian noise'
+    if poisson_noise_factor > 0:
+        print('Enabling poisson noise with factor', poisson_noise_factor)
+        # The higher this factor, the more the poisson noise.
         noisy_data = np.random.poisson(noisy_data / poisson_noise_factor) * poisson_noise_factor
 
-    elif add_gaussian_noise_std > 0.0:
-        print('Adding gaussian noise with std: ', add_gaussian_noise_std)
+    if add_gaussian_noise_std > 0.0:
+        print('Adding gaussian noise', add_gaussian_noise_std)
         noisy_data = noisy_data + np.random.normal(0, add_gaussian_noise_std, noisy_data.shape)
-        # we make sure that the noisy data is positive and the entire noise distribution is above zero
-        # noisy_data = noisy_data - noisy_data.min()
-        # however, this is no longer needed since I know the cause of the issue with histogram noise model.
-        # `ra` was not being correctly set.
+
+    # if poisson_noise_factor:
+    #     print('Adding poisson noise with factor: ', poisson_noise_factor)
+    #     noisy_data = np.random.poisson(noisy_data / poisson_noise_factor) * poisson_noise_factor
+
+    # elif add_gaussian_noise_std > 0.0:
+    #     print('Adding gaussian noise with std: ', add_gaussian_noise_std)
+    #     noisy_data = noisy_data + np.random.normal(0, add_gaussian_noise_std, noisy_data.shape)
+    #     # we make sure that the noisy data is positive and the entire noise distribution is above zero
+    #     # noisy_data = noisy_data - noisy_data.min()
+    #     # however, this is no longer needed since I know the cause of the issue with histogram noise model.
+    #     # `ra` was not being correctly set.
 
     # upperclip
     max_val = np.quantile(noisy_data, upperclip_quantile)
@@ -209,7 +218,7 @@ if __name__ == '__main__':
     parser.add_argument('--learningRate', type=float, default=1e-3)
     parser.add_argument('--traindir', type=str, default=os.path.expanduser('~/training/N2V/'))
     parser.add_argument('--add_gaussian_noise_std', type=float, default=0.0)
-    parser.add_argument('--poisson_noise_factor', action='store_true')
+    parser.add_argument('--poisson_noise_factor', type=float, default=-1)
     parser.add_argument('--upperclip_quantile', type=float, default=1.0)
     parser.add_argument('--lowerclip_quantile', type=float, default=0.0)
     parser.add_argument('--train_dataset_fraction', type=float, default=1.0)
