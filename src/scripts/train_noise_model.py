@@ -26,14 +26,6 @@ from src.scripts.train_n2v import get_bestmodelname, load_data
 from tifffile import imread
 
 
-def get_mrc_data(fpath):
-    # HXWXN
-    _, data = read_mrc(fpath)
-    data = data[None]
-    data = np.swapaxes(data, 0, 3)
-    return data[..., 0]
-
-
 def slashstrip(path):
     if path[-1] == '/':
         return path[:-1]

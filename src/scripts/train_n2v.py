@@ -14,6 +14,7 @@ import git
 from src.ppn2v.experiment_saving import add_git_info, dump_config, get_workdir
 from src.ppn2v.pn2v import histNoiseModel, training, utils
 from src.ppn2v.unet.model import UNet
+from src.scripts.read_mrc import read_mrc
 from tifffile import imread
 
 # See if we can use a GPU
@@ -49,6 +50,14 @@ def get_modelname(datadir, fileName: Union[str, Tuple[str, str]]):
     return nameModel
 
 
+def get_mrc_data(fpath):
+    # HXWXN
+    _, data = read_mrc(fpath)
+    data = data[None]
+    data = np.swapaxes(data, 0, 3)
+    return data[..., 0]
+
+
 def load_data(datapath):
     print('Loading data from: ', datapath)
     if datapath.split('.')[-1] == 'npy':
@@ -60,6 +69,8 @@ def load_data(datapath):
 
     elif datapath.split('.')[-1] == 'tif':
         return imread(datapath)
+    elif datapath.endswith('.mrc'):
+        return get_mrc_data(datapath)
     else:
         raise ValueError('Unknown file type')
 
