@@ -21,8 +21,7 @@ import src.ppn2v.pn2v.prediction
 from src.ppn2v.experiment_saving import add_git_info, dump_config, get_workdir, load_config
 from src.ppn2v.pn2v import *
 from src.ppn2v.pn2v.utils import *
-from src.scripts.read_mrc import read_mrc
-from src.scripts.train_n2v import get_bestmodelname, load_data
+from src.scripts.train_n2v import get_bestmodelname, get_mrc_data, load_data
 from tifffile import imread
 
 
