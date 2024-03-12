@@ -124,6 +124,7 @@ def train_noise_model(
     data_usage_fraction=1.0,
     gmm_tolerance=None,
     train_pure_noise_model=False,
+    clean_datapath=None,
 ):
     """
     Args:
@@ -132,6 +133,13 @@ def train_noise_model(
     hostname = socket.gethostname()
 
     exp_directory = get_workdir(noise_model_rootdirectory, False)
+    # sanity checks
+    if clean_datapath is not None:
+        assert os.path.exists(clean_datapath), f'clean_datapath does not exist: {clean_datapath}'
+        assert train_with_gt_as_clean_data is False, 'train_with_gt_as_clean_data should be False when clean_datapath is provided'
+        assert n2v_modelpath is None, 'n2v_modelpath should be None when clean_datapath is provided'
+        assert poisson_noise_factor == -1, 'poisson_noise_factor should be -1 when clean_datapath is provided'
+        assert add_gaussian_noise_std == -1, 'add_gaussian_noise_std should be -1 when clean_datapath is provided'
 
     config = {
         'datadir': data_dir,
@@ -153,6 +161,7 @@ def train_noise_model(
         'channel_idx': channel_idx,
         'train_pure_noise_model': train_pure_noise_model,
         'poisson_noise_factor': poisson_noise_factor,
+        'clean_datapath': clean_datapath,
     }
     n2v_config = load_config(os.path.dirname(n2v_modelpath)) if n2v_modelpath is not None else None
     if add_gaussian_noise_std > 0:
@@ -221,7 +230,6 @@ def train_noise_model(
         if add_gaussian_noise_std > 0.0:
             print('Adding gaussian noise', add_gaussian_noise_std)
             noisy_data = noisy_data + np.random.normal(0, add_gaussian_noise_std, noisy_data.shape)
-
     else:
         # Here, we are averaging the data. Because, this is what we will do when working with usplit.
         if input_is_sum is False:
@@ -279,6 +287,11 @@ def train_noise_model(
             signal = raw_data
             assert upperclip_quantile == 1.0, 'upperclip_quantile should be 1.0 when using ground truth as clean data'
             assert lowerclip_quantile == 0.0, 'lowerclip_quantile should be 0.0 when using ground truth as clean data'
+        elif clean_datapath is not None:
+            print('Using externally provided clean data as denoised data')
+            signal = load_data(clean_datapath)
+            # NOTE: this works for now, but we should have a better way to handle this.
+            signal = signal[:noisy_data.shape[0]].copy()
         else:
             net = get_trained_n2v_model(n2v_modelpath)
             signal = evaluate_n2v(net, noisy_data)
@@ -302,7 +315,6 @@ def train_noise_model(
     max_sig = np.percentile(norm_signal, 100)
     min_val = min(min_obs, min_sig)
     max_val = max(max_obs, max_sig)
-
     dataName = f"{os.path.basename(slashstrip(data_dir))}-{'_'.join([cleanup_name(fname).split('-')[0] for fname in data_fileName])}"
     histogram = src.ppn2v.pn2v.histNoiseModel.createHistogram(hist_bins, min_val, max_val, norm_obs, norm_signal)
     hist_path = os.path.join(exp_directory, get_hist_model_name(dataName, normalized_version, hist_bins) + '.npy')
@@ -345,6 +357,7 @@ if __name__ == '__main__':
     parser.add_argument('--datadir', type=str, default='/group/jug/ashesh/data/ventura_gigascience')
     parser.add_argument('--datafname', type=str, default='mito-60x-noise2-lowsnr.tif')
     parser.add_argument('--channel_idx', type=int, default=None)
+    parser.add_argument('--clean_datapath', type=str, default=None)
     parser.add_argument('--n2v_modelpath', type=str)
     parser.add_argument('--datafname2', type=str, default='')
     parser.add_argument('--channel_idx2', type=int, default=None)
@@ -366,6 +379,10 @@ if __name__ == '__main__':
     parser.add_argument('--data_usage_fraction', type=float, default=1.0)
 
     args = parser.parse_args()
+    if args.clean_datapath is not None:
+        assert os.path.basename(args.clean_datapath.replace(
+            '_pred', '')) == args.datafname, 'clean_datapath should have the same name as datafname'
+
     train_noise_model(
         args.n2v_modelpath,
         args.noise_model_directory,
@@ -388,4 +405,5 @@ if __name__ == '__main__':
         gmm_tolerance=args.gmm_tolerance,
         train_pure_noise_model=args.train_pure_noise_model,
         data_usage_fraction=args.data_usage_fraction,
+        clean_datapath=args.clean_datapath,
     )
