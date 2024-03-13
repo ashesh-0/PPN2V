@@ -369,10 +369,14 @@ if __name__ == '__main__':
     parser.add_argument('--train_pure_noise_model', action='store_true')
     parser.add_argument('--data_usage_fraction', type=float, default=1.0)
 
+    def remove_extension(fname):
+        output = fname.replace('.tif', '').replace('.npy', '')
+        return output
+
     args = parser.parse_args()
     if args.clean_datapath is not None:
-        assert os.path.basename(args.clean_datapath.replace(
-            '_pred', '')) == args.datafname, 'clean_datapath should have the same name as datafname'
+        assert remove_extension(os.path.basename(args.clean_datapath.replace('_pred', ''))) == remove_extension(
+            args.datafname), 'clean_datapath should have the same name as datafname'
 
     train_noise_model(
         args.n2v_modelpath,
