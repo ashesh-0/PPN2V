@@ -282,7 +282,8 @@ def train_noise_model(
             print('Using externally provided clean data as denoised data')
             signal = load_data(clean_datapath)
             # NOTE: this works for now, but we should have a better way to handle this.
-            signal = signal[:noisy_data.shape[0]].copy()
+            signal = signal[:noisy_data.shape[0]].astype(np.uint32)
+            noisy_data = noisy_data.astype(np.float64)
         else:
             net = get_trained_n2v_model(n2v_modelpath)
             signal = evaluate_n2v(net, noisy_data)
