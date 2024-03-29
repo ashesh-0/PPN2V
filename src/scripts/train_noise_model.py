@@ -209,7 +209,7 @@ def train_noise_model(
         print('Training pure noise model')
         assert count == 0, 'train_pure_noise_model should not have any data'
         assert add_gaussian_noise_std > 0 or poisson_noise_factor > 0, 'train_pure_noise_model should have some noise'
-        signal = np.random.uniform(0, 65535, size=(50, 128, 128)).astype(np.uint32)
+        signal = np.random.uniform(0, 65535, size=(300, 128, 128)).astype(np.uint32)
         noisy_data = np.tile(signal[:, None], (1, 100, 1, 1))
         noisy_data = noisy_data.reshape(-1, 128, 128)
 
