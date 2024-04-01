@@ -209,17 +209,20 @@ def train_noise_model(
         print('Training pure noise model')
         assert count == 0, 'train_pure_noise_model should not have any data'
         assert add_gaussian_noise_std > 0 or poisson_noise_factor > 0, 'train_pure_noise_model should have some noise'
-        signal = np.random.uniform(0, 65535, size=(600, 128, 128)).astype(np.uint32)
-        noisy_data = np.tile(signal[:, None], (1, 100, 1, 1))
-        noisy_data = noisy_data.reshape(-1, 128, 128)
+        signal = np.random.uniform(0, 65535, size=(100, 128, 128)).astype(np.uint32)
 
         if poisson_noise_factor > 0:
             print('Enabling poisson noise with factor', poisson_noise_factor)
             # The higher this factor, the more the poisson noise.
-            noisy_data = np.random.poisson(noisy_data / poisson_noise_factor) * poisson_noise_factor
+            signal = signal // poisson_noise_factor
+            noisy_data = np.tile(signal[:, None], (1, 100, 1, 1))
+            noisy_data = noisy_data.reshape(-1, 128, 128)
+            noisy_data = np.random.poisson(noisy_data)  #* poisson_noise_factor
 
         if add_gaussian_noise_std > 0.0:
             print('Adding gaussian noise', add_gaussian_noise_std)
+            noisy_data = np.tile(signal[:, None], (1, 100, 1, 1))
+            noisy_data = noisy_data.reshape(-1, 128, 128)
             noisy_data = noisy_data + np.random.normal(0, add_gaussian_noise_std, noisy_data.shape)
     else:
         # Here, we are averaging the data. Because, this is what we will do when working with usplit.
