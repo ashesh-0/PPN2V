@@ -149,7 +149,7 @@ def train(
     if poisson_noise_factor > 0:
         print('Enabling poisson noise with factor', poisson_noise_factor)
         # The higher this factor, the more the poisson noise.
-        noisy_data = np.random.poisson(noisy_data / poisson_noise_factor) * poisson_noise_factor
+        noisy_data = np.random.poisson(noisy_data / poisson_noise_factor)
 
     if add_gaussian_noise_std > 0.0:
         print('Adding gaussian noise', add_gaussian_noise_std)
