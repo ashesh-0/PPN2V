@@ -131,6 +131,7 @@ def train_noise_model(
         assert n2v_modelpath is None, 'n2v_modelpath should be None when clean_datapath is provided'
         assert poisson_noise_factor == -1, 'poisson_noise_factor should be -1 when clean_datapath is provided'
         assert add_gaussian_noise_std == -1, 'add_gaussian_noise_std should be -1 when clean_datapath is provided'
+        assert val_fraction == 0.0, 'val_fraction should be 0.0 when clean_datapath is provided'
 
     config = {
         'datadir': data_dir,
@@ -354,6 +355,7 @@ if __name__ == '__main__':
     parser.add_argument('--channel_idx', type=int, default=None)
     parser.add_argument('--clean_datapath', type=str, default=None)
     parser.add_argument('--n2v_modelpath', type=str)
+    parser.add_argument('--val_fraction', type=float, default=0.2)
     parser.add_argument('--datafname2', type=str, default='')
     parser.add_argument('--channel_idx2', type=int, default=None)
     parser.add_argument('--input_is_sum', action='store_true')
@@ -405,4 +407,5 @@ if __name__ == '__main__':
         train_pure_noise_model=args.train_pure_noise_model,
         data_usage_fraction=args.data_usage_fraction,
         clean_datapath=args.clean_datapath,
+        val_fraction=args.val_fraction,
     )
