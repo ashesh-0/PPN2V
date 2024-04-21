@@ -364,7 +364,7 @@ if __name__ == '__main__':
     parser.add_argument('--n_gaussian', type=int, default=6)
     parser.add_argument('--n_coeff', type=int, default=4)
     parser.add_argument('--hist_bins', type=int, default=64)
-    parser.add_argument('--unnormalized_version', action='store_true')
+    parser.add_argument('--normalized_version', action='store_true')
     parser.add_argument('--upperclip_quantile', type=float, default=1.0)
     parser.add_argument('--lowerclip_quantile', type=float, default=0.0)
     parser.add_argument('--train_dataset_fraction', type=float, default=1.0)
@@ -390,7 +390,7 @@ if __name__ == '__main__':
         args.datadir,
         (args.datafname, args.datafname2),
         channel_idx=(args.channel_idx, args.channel_idx2),
-        normalized_version=(not args.unnormalized_version),
+        normalized_version=args.normalized_version,
         n_gaussian=args.n_gaussian,
         n_coeff=args.n_coeff,
         gmm_min_sigma=args.gmm_min_sigma,
