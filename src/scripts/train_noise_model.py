@@ -98,6 +98,7 @@ def train_noise_model(
     data_dir,
     data_fileName,
     channel_idx=None,
+    channel_dim=None,
     normalized_version=True,
     n_gaussian=6,
     n_coeff=4,
@@ -151,6 +152,7 @@ def train_noise_model(
         'train_with_gt_as_clean_data': train_with_gt_as_clean_data,
         'gmm_tolerance': gmm_tolerance,
         'channel_idx': channel_idx,
+        'channel_dim': channel_dim,
         'train_pure_noise_model': train_pure_noise_model,
         'poisson_noise_factor': poisson_noise_factor,
         'clean_datapath': clean_datapath,
@@ -182,7 +184,7 @@ def train_noise_model(
     noisy_data = None
     assert isinstance(data_fileName, tuple)
     count = 0
-    for fName, c_idx in zip(data_fileName, channel_idx):
+    for fName, c_idx, c_dim in zip(data_fileName, channel_idx, channel_dim):
         if fName == '':
             assert c_idx is None, 'filename needs to be provided if channel index is provided.'
             continue
@@ -193,8 +195,16 @@ def train_noise_model(
         else:
             data = load_data(fpath)
         if c_idx is not None:
-            print('Using only channel', c_idx, 'from the data', data.shape)
-            data = data[..., c_idx]
+            print('Using only channel', c_idx, ' at dimension', c_dim, ' from the data', data.shape)
+            assert c_dim is not None, 'channel_dim should be provided if channel_idx is provided'
+            if c_dim == 1:
+                data = data[:, c_idx]
+            elif c_dim == 2:
+                data = data[:, :, c_idx]
+            elif c_dim == 3:
+                data = data[:, :, :, c_idx]
+            else:
+                raise ValueError('Invalid channel dimension', c_dim)
 
         if noisy_data is None:
             noisy_data = data
@@ -353,11 +363,13 @@ if __name__ == '__main__':
     parser.add_argument('--datadir', type=str, default='/group/jug/ashesh/data/ventura_gigascience')
     parser.add_argument('--datafname', type=str, default='mito-60x-noise2-lowsnr.tif')
     parser.add_argument('--channel_idx', type=int, default=None)
+    parser.add_argument('--channel_dim', type=int, default=None)
     parser.add_argument('--clean_datapath', type=str, default=None)
     parser.add_argument('--n2v_modelpath', type=str)
     parser.add_argument('--val_fraction', type=float, default=0.2)
     parser.add_argument('--datafname2', type=str, default='')
     parser.add_argument('--channel_idx2', type=int, default=None)
+    parser.add_argument('--channel_dim2', type=int, default=None)
     parser.add_argument('--input_is_sum', action='store_true')
     parser.add_argument('--noise_model_directory', type=str, default='/home/ashesh.ashesh/training/noise_model/')
     parser.add_argument('--gmm_min_sigma', type=float, default=0.125)
@@ -390,6 +402,7 @@ if __name__ == '__main__':
         args.datadir,
         (args.datafname, args.datafname2),
         channel_idx=(args.channel_idx, args.channel_idx2),
+        channel_dim=(args.channel_dim, args.channel_dim2),
         normalized_version=args.normalized_version,
         n_gaussian=args.n_gaussian,
         n_coeff=args.n_coeff,
