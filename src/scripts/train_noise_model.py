@@ -309,7 +309,7 @@ def train_noise_model(
             print('Using externally provided clean data as denoised data')
             signal = load_data(clean_datapath)
             # NOTE: this works for now, but we should have a better way to handle this.
-            signal = signal[:noisy_data.shape[0]].astype(np.uint32)
+            signal = signal[:noisy_data.shape[0]].copy()
             noisy_data = noisy_data.astype(np.float64)
         else:
             net = get_trained_n2v_model(n2v_modelpath)
@@ -321,12 +321,9 @@ def train_noise_model(
         assert signal.max() <= hard_upper_threshold
         assert noisy_data.max() <= hard_upper_threshold
 
-    if normalized_version:
-        norm_signal = (signal - noisy_data.mean()) / noisy_data.std()
-        norm_obs = (noisy_data - noisy_data.mean()) / noisy_data.std()
-    else:
-        norm_signal = signal.copy()
-        norm_obs = noisy_data.copy()
+    assert normalized_version is False, 'Normalized version is useless for Histogram based NM.'
+    norm_signal = signal
+    norm_obs = noisy_data
 
     min_obs = np.percentile(norm_obs, 0.0)
     max_obs = np.percentile(norm_obs, 100)
