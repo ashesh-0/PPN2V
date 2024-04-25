@@ -18,11 +18,21 @@ from tqdm import tqdm
 import src.ppn2v.pn2v.gaussianMixtureNoiseModel
 import src.ppn2v.pn2v.histNoiseModel
 import src.ppn2v.pn2v.prediction
+from czifile import imread as imread_czi
 from src.ppn2v.experiment_saving import add_git_info, dump_config, get_workdir, load_config
 from src.ppn2v.pn2v import *
 from src.ppn2v.pn2v.utils import *
 from src.scripts.train_n2v import get_bestmodelname, get_mrc_data, load_data
 from tifffile import imread
+
+
+def load_czi_data(fpath):
+    # (4, 1, 4, 22, 512, 512, 1)
+    data = imread_czi(fpath)
+    clean_data = data[3, 0, [0, 2], ..., 0]
+    clean_data = np.swapaxes(clean_data[..., None], 0, 4)[0]
+    print('Loaded from', fpath, 'shape:', clean_data.shape)
+    return clean_data
 
 
 def slashstrip(path):
@@ -89,7 +99,7 @@ def get_frame_count(data_shape, datausage_fraction=1.0):
 
 
 def cleanup_name(fname):
-    return fname.replace('/', '_').replace('.mrc', '').replace('.tif', '')
+    return '.'.join(fname.replace('/', '_').split('.')[:-1])
 
 
 def train_noise_model(
@@ -192,8 +202,11 @@ def train_noise_model(
         fpath = os.path.join(data_dir, fName)
         if fpath.endswith('.mrc'):
             data = get_mrc_data(fpath)
+        elif fpath.endswith('.czi'):
+            data = load_czi_data(fpath)
         else:
             data = load_data(fpath)
+
         if c_idx is not None:
             print('Using only channel', c_idx, ' at dimension', c_dim, ' from the data', data.shape)
             assert c_dim is not None, 'channel_dim should be provided if channel_idx is provided'
@@ -366,7 +379,7 @@ if __name__ == '__main__':
     parser.add_argument('--channel_dim', type=int, default=None)
     parser.add_argument('--clean_datapath', type=str, default=None)
     parser.add_argument('--n2v_modelpath', type=str)
-    parser.add_argument('--val_fraction', type=float, default=0.2)
+    parser.add_argument('--val_fraction', type=float, default=0.0)
     parser.add_argument('--datafname2', type=str, default='')
     parser.add_argument('--channel_idx2', type=int, default=None)
     parser.add_argument('--channel_dim2', type=int, default=None)
@@ -388,14 +401,13 @@ if __name__ == '__main__':
     parser.add_argument('--data_usage_fraction', type=float, default=1.0)
 
     def remove_extension(fname):
-        output = fname.replace('.tif', '').replace('.npy', '')
-        return output
+        return '.'.join(fname.split('.')[:-1])
 
     args = parser.parse_args()
     if args.clean_datapath is not None:
-        assert remove_extension(os.path.basename(args.clean_datapath.replace('_pred', ''))) == remove_extension(
-            args.datafname), 'clean_datapath should have the same name as datafname'
-
+        signal_fname = remove_extension(os.path.basename(args.clean_datapath.replace('_pred', '')))
+        noisy_fname = remove_extension(args.datafname)
+        assert signal_fname == noisy_fname, f'clean_datapath should have the same name as datafname, Found {signal_fname} and {noisy_fname}'
     train_noise_model(
         args.n2v_modelpath,
         args.noise_model_directory,
