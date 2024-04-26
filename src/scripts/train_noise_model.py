@@ -371,7 +371,7 @@ if __name__ == '__main__':
     # Let's look at the training and validation loss
     parser = argparse.ArgumentParser()
     parser.add_argument('--datadir', type=str, default='/group/jug/ashesh/data/ventura_gigascience')
-    parser.add_argument('--datafname', type=str, default='mito-60x-noise2-lowsnr.tif')
+    parser.add_argument('--datafname', type=str, default='')
     parser.add_argument('--channel_idx', type=int, default=None)
     parser.add_argument('--channel_dim', type=int, default=None)
     parser.add_argument('--clean_datapath', type=str, default=None)
@@ -401,15 +401,27 @@ if __name__ == '__main__':
         return '.'.join(fname.split('.')[:-1])
 
     args = parser.parse_args()
+
+    # handling the convenient case when datadir is passed as a file and nothing is passed in fname.
+    datadir = args.datadir
+    fname = args.datafname
+    fname2 = args.datafname2
+    if os.path.isfile(datadir):
+        assert fname == ''
+        assert fname2 == ''
+        fname = os.path.basename(datadir)
+        datadir = os.path.dirname(datadir)
+
     if args.clean_datapath is not None:
         signal_fname = remove_extension(os.path.basename(args.clean_datapath.replace('_pred', '')))
-        noisy_fname = remove_extension(args.datafname)
+        noisy_fname = remove_extension(fname)
         assert signal_fname == noisy_fname, f'clean_datapath should have the same name as datafname, Found {signal_fname} and {noisy_fname}'
+
     train_noise_model(
         args.n2v_modelpath,
         args.noise_model_directory,
-        args.datadir,
-        (args.datafname, args.datafname2),
+        datadir,
+        (fname, fname2),
         channel_idx=(args.channel_idx, args.channel_idx2),
         channel_dim=(args.channel_dim, args.channel_dim2),
         normalized_version=args.normalized_version,
